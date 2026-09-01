@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resonant Engine Lab</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Resonant Engine</p>
+        <h1>M2 — Resonant Engine Lab</h1>
+        <p class="lede">Engineering test harness for the canonical C++ core. It is not a browser synth.</p>
+      </div>
+      <div class="status-panel">
+        <span id="status">Audio stopped</span>
+        <div class="button-row">
+          <button id="start" class="primary">Start audio</button>
+          <button id="stop" disabled>Stop audio</button>
+          <button id="reset" disabled>Reset</button>
+          <button id="panic" disabled>Panic</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="probe-heading">
+      <h2 id="probe-heading">Manual probe</h2>
+      <p class="muted">Exact test controls only. No performance keyboard or Web MIDI surface.</p>
+      <div class="probe-grid">
+        <label>MIDI note <input id="manual-note" type="number" min="0" max="127" step="1" value="60"></label>
+        <label>Velocity <input id="manual-velocity" type="number" min="0" max="127" step="1" value="96"></label>
+        <button id="note-on" disabled>Note on</button>
+        <button id="note-off" disabled>Note off</button>
+        <label>Monitor level <input id="monitor-level" type="range" min="0" max="0.8" step="0.01" value="0.25"></label>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="parameters-heading">
+      <div class="section-head">
+        <div>
+          <h2 id="parameters-heading">Canonical parameters</h2>
+          <p class="muted">Ranges/defaults are read from the C++ Lab adapter.</p>
+        </div>
+        <label>Test preset
+          <select id="preset"></select>
+        </label>
+      </div>
+      <div id="parameter-controls" class="parameter-grid"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="measurement-heading">
+      <h2 id="measurement-heading">Measurements</h2>
+      <div class="metrics">
+        <div><span>Fundamental</span><strong id="metric-f0">—</strong></div>
+        <div><span>RMS</span><strong id="metric-rms">—</strong></div>
+        <div><span>Peak</span><strong id="metric-peak">—</strong></div>
+        <div><span>DC offset</span><strong id="metric-dc">—</strong></div>
+        <div><span>Resonator energy</span><strong id="metric-energy">—</strong></div>
+        <div><span>Stability</span><strong id="metric-stability">QUIET</strong></div>
+        <div><span>Active voices</span><strong id="metric-voices">0 / 8</strong></div>
+        <div><span>CPU load</span><strong id="metric-cpu">—</strong></div>
+      </div>
+      <div class="plots">
+        <figure><figcaption>Waveform</figcaption><canvas id="waveform" width="720" height="180"></canvas></figure>
+        <figure><figcaption>Spectrum</figcaption><canvas id="spectrum" width="720" height="180"></canvas></figure>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="suite-heading">
+      <div class="section-head">
+        <div>
+          <h2 id="suite-heading">Human acceptance suite</h2>
+          <p id="test-expected" class="muted"></p>
+        </div>
+        <label>Test <select id="test-select"></select></label>
+      </div>
+      <div class="button-row">
+        <button id="run-test" class="primary" disabled>Run selected</button>
+        <button id="run-all" disabled>Run all nine</button>
+        <button id="abort-test" disabled>Abort</button>
+        <label class="check"><input id="record-wav" type="checkbox"> Capture WAV</label>
+      </div>
+      <p id="runner-status" class="runner-status">No test running.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="evidence-heading">
+      <h2 id="evidence-heading">Evidence</h2>
+      <div class="evidence-inputs">
+        <label>Listener notes<textarea id="listener-notes" rows="4" placeholder="What did you hear?"></textarea></label>
+        <label>Human result
+          <select id="human-result">
+            <option value="INVESTIGATE">INVESTIGATE</option>
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+          </select>
+        </label>
+      </div>
+      <div class="button-row">
+        <button id="export-json" disabled>Export JSON</button>
+        <button id="export-wav" disabled>Export WAV</button>
+        <button id="export-plots" disabled>Export plots PNG</button>
+      </div>
+      <pre id="evidence-preview">No evidence captured yet.</pre>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
