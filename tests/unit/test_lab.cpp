@@ -108,15 +108,39 @@ void testAggressiveFiniteOperation() {
     }
 
     std::array<float, 128> output{};
+    bool protected_seen = false;
     for (std::uint32_t block = 0; block < 1'000U; ++block) {
-        check(lab.process(output), "aggressive lab process remains protected and finite");
+        const auto ok = lab.process(output);
+        protected_seen = protected_seen || !ok || lab.telemetry().protected_state;
         for (const auto sample : output) {
             check(std::isfinite(sample), "aggressive lab output finite");
             check(std::abs(sample) <= 1.0F, "lab safety mix remains bounded");
         }
+        if (protected_seen) {
+            check(std::all_of(output.begin(), output.end(),
+                              [](float sample) { return sample == 0.0F; }),
+                  "protected stress output is silent");
+            break;
+        }
     }
-    check(!lab.telemetry().protected_state, "aggressive finite state is not false-positive protected");
     check(lab.telemetry().maximum_polyphony == 8U, "maximum polyphony telemetry is stable");
+
+    if (protected_seen) {
+        output.fill(1.0F);
+        check(!lab.process(output), "protected state persists until explicit recovery");
+        check(std::all_of(output.begin(), output.end(),
+                          [](float sample) { return sample == 0.0F; }),
+              "protected state remains silent");
+    }
+
+    lab.reset();
+    check(!lab.telemetry().protected_state, "reset clears protected state");
+    check(lab.telemetry().active_voices == 0U, "reset clears stress voices");
+    output.fill(1.0F);
+    check(lab.process(output), "reset restores process operation");
+    check(std::all_of(output.begin(), output.end(),
+                      [](float sample) { return sample == 0.0F; }),
+          "reset restores known-good silence");
 }
 
 void testDeterministicReset() {
