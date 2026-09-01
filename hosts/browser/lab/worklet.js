@@ -9,6 +9,8 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
     this.telemetryCountdown = 0;
     this.hardFailureReported = false;
     this.scenario = null;
+    this.blockDiagnostics = this.newDiagnostics();
+    this.scenarioDiagnostics = this.newDiagnostics();
 
     this.port.onmessage = (event) => {
       if (!this.ready) {
@@ -44,14 +46,37 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
       });
   }
 
+  newDiagnostics() {
+    return {
+      outputRms: 0,
+      outputPeak: 0,
+      dcOffset: 0,
+      maxOutputPeak: 0,
+      maxAbsDc: 0,
+      clipping: false,
+      excessiveDc: false,
+      nonFiniteOutput: false,
+    };
+  }
+
+  setParameter(id, value) {
+    if (!Number.isFinite(id) || !Number.isFinite(value) || !this.module._re_set_parameter(Number(id), Number(value))) {
+      this.port.postMessage({ type: 'error', message: `Invalid Lab parameter update: id=${id} value=${value}` });
+      return false;
+    }
+    return true;
+  }
+
   applyMessage(message) {
     const m = this.module;
     switch (message.type) {
       case 'param':
-        m._re_set_parameter(Number(message.id), Number(message.value));
+        this.setParameter(message.id, message.value);
         break;
       case 'noteOn':
-        m._re_note_on(Number(message.note), Number(message.velocity));
+        if (!m._re_note_on(Number(message.note), Number(message.velocity))) {
+          this.port.postMessage({ type: 'error', message: `Invalid Lab note-on: ${message.note}` });
+        }
         break;
       case 'noteOff':
         m._re_note_off(Number(message.note));
@@ -60,6 +85,8 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
         m._re_reset();
         this.scenario = null;
         this.hardFailureReported = false;
+        this.blockDiagnostics = this.newDiagnostics();
+        this.scenarioDiagnostics = this.newDiagnostics();
         break;
       case 'panic':
         m._re_panic();
@@ -80,6 +107,7 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
   startScenario(message) {
     this.module._re_reset();
     this.hardFailureReported = false;
+    this.scenarioDiagnostics = this.newDiagnostics();
     this.scenario = {
       id: String(message.id),
       frame: 0,
@@ -96,10 +124,12 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
     const m = this.module;
     switch (action.type) {
       case 'param':
-        m._re_set_parameter(Number(action.id), Number(action.value));
+        this.setParameter(action.id, action.value);
         break;
       case 'noteOn':
-        m._re_note_on(Number(action.note), Number(action.velocity));
+        if (!m._re_note_on(Number(action.note), Number(action.velocity))) {
+          this.port.postMessage({ type: 'error', message: `Scenario note-on rejected: ${action.note}` });
+        }
         break;
       case 'noteOff':
         m._re_note_off(Number(action.note));
@@ -128,8 +158,54 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
     }
   }
 
+  measureOutput(mono) {
+    let sum = 0;
+    let sumSquares = 0;
+    let peak = 0;
+    let nonFinite = false;
+    for (const sample of mono) {
+      if (!Number.isFinite(sample)) {
+        nonFinite = true;
+        continue;
+      }
+      sum += sample;
+      sumSquares += sample * sample;
+      peak = Math.max(peak, Math.abs(sample));
+    }
+    const dc = mono.length > 0 ? sum / mono.length : 0;
+    const rms = mono.length > 0 ? Math.sqrt(sumSquares / mono.length) : 0;
+    this.blockDiagnostics = {
+      outputRms: rms,
+      outputPeak: peak,
+      dcOffset: dc,
+      maxOutputPeak: peak,
+      maxAbsDc: Math.abs(dc),
+      clipping: peak >= 0.999,
+      excessiveDc: Math.abs(dc) >= 0.05,
+      nonFiniteOutput: nonFinite,
+    };
+
+    if (this.scenario) {
+      const d = this.scenarioDiagnostics;
+      d.outputRms = rms;
+      d.outputPeak = peak;
+      d.dcOffset = dc;
+      d.maxOutputPeak = Math.max(d.maxOutputPeak, peak);
+      d.maxAbsDc = Math.max(d.maxAbsDc, Math.abs(dc));
+      d.clipping ||= peak >= 0.999;
+      d.excessiveDc ||= Math.abs(dc) >= 0.05;
+      d.nonFiniteOutput ||= nonFinite;
+    }
+
+    if (nonFinite && !this.hardFailureReported) {
+      this.hardFailureReported = true;
+      this.port.postMessage({ type: 'hardFailure', reason: 'non-finite-output', telemetry: this.telemetry() });
+    }
+  }
+
   telemetry() {
     const m = this.module;
+    const d = this.scenario ? this.scenarioDiagnostics : this.blockDiagnostics;
     return {
       type: 'telemetry',
       resonatorEnergy: m._re_resonator_energy(),
@@ -145,6 +221,14 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
       cpuLoad: m._re_cpu_load(),
       cpuLoadSmoothed: m._re_cpu_load_smoothed(),
       cpuLoadMax: m._re_cpu_load_max(),
+      outputBlockRms: this.blockDiagnostics.outputRms,
+      outputBlockPeak: this.blockDiagnostics.outputPeak,
+      outputBlockDc: this.blockDiagnostics.dcOffset,
+      scenarioOutputPeak: d.maxOutputPeak,
+      scenarioMaxAbsDc: d.maxAbsDc,
+      scenarioClipping: d.clipping,
+      scenarioExcessiveDc: d.excessiveDc,
+      scenarioNonFiniteOutput: d.nonFiniteOutput,
       scenarioId: this.scenario?.id ?? null,
       scenarioFrame: this.scenario?.frame ?? null,
     };
@@ -164,20 +248,26 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
     const ok = this.module._re_process(frames);
     const ptr = this.module._re_output_ptr() >>> 2;
     const mono = this.module.HEAPF32.subarray(ptr, ptr + frames);
+    this.measureOutput(mono);
     for (const channel of output) channel.set(mono);
 
     if (!ok && !this.hardFailureReported) {
       this.hardFailureReported = true;
-      this.port.postMessage({ type: 'hardFailure', telemetry: this.telemetry() });
+      this.port.postMessage({ type: 'hardFailure', reason: 'core-protected-state', telemetry: this.telemetry() });
     }
 
     if (this.scenario) {
       this.scenario.frame += frames;
       if (this.scenario.frame >= this.scenario.durationFrames) {
         const completed = this.scenario.id;
+        const finalTelemetry = this.telemetry();
         this.scenario = null;
         this.module._re_panic();
-        this.port.postMessage({ type: 'scenarioComplete', id: completed, telemetry: this.telemetry() });
+        const recovery = this.telemetry();
+        finalTelemetry.recoveryActiveVoices = recovery.activeVoices;
+        finalTelemetry.recoveryHeldVoices = recovery.heldVoices;
+        finalTelemetry.recoveryProtectedState = recovery.protectedState;
+        this.port.postMessage({ type: 'scenarioComplete', id: completed, telemetry: finalTelemetry });
       }
     }
 
