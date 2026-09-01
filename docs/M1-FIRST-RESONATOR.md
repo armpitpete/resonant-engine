@@ -19,7 +19,7 @@ silence
 → silence/decay
 ```
 
-The voice must be useful enough to audition as an instrument primitive rather than merely pass numerical tests.
+The voice must be useful enough to **play as an instrument primitive**, not merely pass numerical tests or produce acceptable offline renders.
 
 ## Selected model
 
@@ -109,18 +109,29 @@ M1 explicitly permits:
 
 It does not permit NaN/Infinity propagation. Musical nonlinearity and emergency finite-state containment are separate mechanisms. Existing `EnergyMonitor` diagnostics observe excitation, resonator, output and returned-feedback energy.
 
-## Deterministic render scenes
+## Offline regression scenes
 
-`resonant_m1_render` provides six canonical one-second 48 kHz fixtures at seed 777:
+`resonant_m1_render` provides six canonical deterministic scenes: `passive-pluck`, `continuous`, `feedback`, `nonlinear`, `sweep`, and `silent`.
 
-1. `passive-pluck` — transient excitation with no active regeneration;
-2. `continuous` — continuous deterministic noise excitation without NoteOn;
-3. `feedback` — stronger regenerative loop plus returned-state interaction;
-4. `nonlinear` — aggressive bounded feedback with maximum musical nonlinearity;
-5. `sweep` — continuous excitation with a sample-accurate mid-render pitch target change;
-6. `silent` — zero-energy control fixture.
+Their verifier checks WAV structure, silence/non-silence, gross level/clipping and passive-decay behaviour. These renders are **machine regression evidence only**. They are not the M1 human acceptance method.
 
-The regression verifier checks WAV structure, silence/non-silence, gross level/clipping and passive-decay behaviour. These fixtures are also the human listening set.
+## Interactive play-test host
+
+`hosts/browser/m1/` compiles the real C++ `FirstResonatorVoice` to WebAssembly and runs it in an AudioWorklet. The JavaScript layer handles browser transport, UI and MIDI only; it does not reimplement synthesis.
+
+The M1 human gate is performed by playing this live host with:
+
+- computer-keyboard or MIDI pitch input;
+- transient trigger/pluck excitation;
+- continuous excitation without NoteOn;
+- turbulence movement;
+- damping movement;
+- active regeneration movement;
+- in-loop nonlinearity;
+- resonator-to-exciter interaction;
+- reset/recovery.
+
+The play test must establish that the voice responds as a useful resonant instrument primitive and is materially beyond the M0 `ReferenceFeedbackProbe` in actual interaction.
 
 ## Test matrix
 
@@ -142,12 +153,13 @@ M1 requires evidence for:
 - 44.1/48/96/192 kHz processing;
 - randomized parameter/event stress;
 - zero dynamic allocation in the demonstrated real-time path;
-- deterministic render fixtures;
+- deterministic offline regression fixtures;
 - M0 regression suite preservation;
 - Debug/Release and warnings-as-errors;
 - GCC/Clang/MSVC CI;
 - ASan+UBSan;
-- no-exceptions/no-RTTI core compile probe.
+- no-exceptions/no-RTTI core compile probe;
+- Emscripten build of the live AudioWorklet/WASM acceptance host.
 
 ## M1 non-goals
 
@@ -157,10 +169,11 @@ M1 does not include:
 - a reed/jet/lip physical exciter;
 - arbitrary resonator graphs;
 - coupled-resonator scheduling;
-- production browser/WASM UI;
+- production browser UI;
 - production VST3/JUCE wrapper;
 - production embedded firmware;
 - full MIDI/MPE mapping;
+- polyphony;
 - preset serialization;
 - SIMD optimization;
 - a general oversampling framework;
@@ -170,4 +183,4 @@ M1 does not include:
 
 ## Completion rule
 
-`docs/M1-COMPLETION.md` is the authoritative evidence gate. M1 may be declared FINAL PASS only after exact-head CI, hostile architecture review, deterministic render evidence and the human listening gate are all complete, followed by the protected merge decision.
+`docs/M1-COMPLETION.md` is the authoritative evidence gate. M1 may be declared FINAL PASS only after exact-head CI, hostile architecture review, deterministic regression evidence and the **interactive human play-test gate** are complete, followed by the protected merge decision.
