@@ -21,20 +21,31 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }}
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
-      - name: Upload M1 listening fixtures
-        if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Release'
+
+  browser-m1-playtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.6
+          actions-cache-folder: emsdk-cache
+      - name: Build live M1 AudioWorklet/WASM synth
+        run: bash hosts/browser/m1/build.sh
+      - name: Verify browser artifact
+        run: |
+          test -s build/m1-browser/index.html
+          test -s build/m1-browser/app.js
+          test -s build/m1-browser/worklet.js
+          test -s build/m1-browser/resonant-m1.js
+          node --check build/m1-browser/app.js
+          node --check build/m1-browser/worklet.js
+      - name: Upload playable M1 synth
         uses: actions/upload-artifact@v4
         with:
-          name: m1-listening-fixtures-${{ github.sha }}
+          name: m1-playable-browser-${{ github.sha }}
           if-no-files-found: error
-          path: |
-            build/m0-canonical.wav
-            build/m1-passive-pluck.wav
-            build/m1-continuous.wav
-            build/m1-feedback.wav
-            build/m1-nonlinear.wav
-            build/m1-sweep.wav
-            build/m1-silent.wav
+          path: build/m1-browser/
 
   sanitizers:
     runs-on: ubuntu-latest
