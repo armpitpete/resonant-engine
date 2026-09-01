@@ -70,20 +70,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            browser: chromium
-            install: chromium
-          - os: ubuntu-latest
-            browser: firefox
-            install: firefox
-          - os: ubuntu-latest
-            browser: webkit
-            install: webkit
-          - os: windows-latest
-            browser: msedge
-            install: none
-    runs-on: ${{ matrix.os }}
+        browser: [chromium, firefox, webkit, msedge]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -93,12 +81,20 @@ jobs:
         with:
           name: resonant-engine-lab-${{ github.sha }}
           path: build/resonant-lab
-      - name: Install Playwright
-        run: npm install --no-save playwright@1.55.0
+      - name: Install pinned Playwright
+        run: npm install --no-save playwright@1.54.1
       - name: Install browser engine
-        if: matrix.install != 'none'
-        run: npx playwright install --with-deps ${{ matrix.install }}
-      - name: Smoke test Lab audio path
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start deterministic PulseAudio null sink
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=resonant_ci sink_properties=device.description=Resonant_CI >/dev/null
+          pactl set-default-sink resonant_ci
+          pactl info
+          pactl list short sinks
+      - name: Smoke test Lab realtime audio path
         env:
           LAB_BROWSER: ${{ matrix.browser }}
         run: node tests/browser/lab_smoke.mjs build/resonant-lab
