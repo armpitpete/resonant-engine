@@ -1,6 +1,6 @@
 # M1 — First Resonator Completion Gate
 
-Status: **CANDIDATE — IMPLEMENTATION AND EVIDENCE IN PROGRESS**
+Status: **CANDIDATE ENGINEERING PASS — HUMAN LISTENING GATE REQUIRED**
 
 M0 is frozen at merged `main` before this milestone. M1 may extend capability but may not silently reinterpret an M0 invariant.
 
@@ -56,24 +56,24 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] continuous deterministic-noise excitation path exists.
 - [x] regenerative state exists.
 - [x] aggressive nonlinear finite state exists.
-- [x] return-to-silence/passive decay is testable.
-- [x] six canonical M1 render scenes defined.
+- [x] return-to-silence/passive decay demonstrated by fixture verification.
+- [x] six canonical M1 render scenes defined and retained as a CI artifact.
 - [ ] human listening gate: fixtures judged musically useful and materially beyond `ReferenceFeedbackProbe`.
 
 ## Determinism
 
 - [x] same-seed deterministic internal noise design.
 - [x] reset restores the original seed state.
-- [x] same seed/event sequence regression test added.
-- [x] different seed variation test added.
-- [x] block-size-invariant deterministic regression test added.
+- [x] same seed/event sequence regression test passes.
+- [x] different seed variation test passes.
+- [x] block-size-invariant deterministic regression test passes.
 - [x] cross-platform policy remains tolerance-conformant rather than bit-identical promise.
 
 ## Real-time correctness
 
 - [x] fixed-capacity delay storage.
 - [x] no allocation required by the model's sample path.
-- [x] dedicated allocation-counting test added around `Engine::process()`.
+- [x] dedicated allocation-counting test around `Engine::process()` passes.
 - [x] no locks introduced.
 - [x] no I/O/filesystem/network dependency introduced into core.
 - [x] no unbounded graph/queue work introduced.
@@ -83,12 +83,14 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 
 - [x] real resonator output feeds `EnergyMonitor`.
 - [x] excitation/resonator/output/feedback observations wired.
-- [x] passive-vs-regenerative late-energy test added.
-- [x] aggressive high-feedback nonlinear long-run test added.
+- [x] passive-vs-regenerative late-energy test passes.
+- [x] aggressive high-feedback nonlinear 100,000-sample long-run test passes.
+- [x] randomized 128,000-sample parameter/event stress passes.
 - [x] model rejects/contains numerical non-finite state.
 - [x] musically aggressive finite operation remains legal.
+- [x] coarse generic `EnergyState` classification limitation documented rather than overclaimed.
 
-## Test coverage added
+## Test coverage and deterministic fixtures
 
 - [x] concept compatibility test.
 - [x] multi-sample-rate prepare test.
@@ -105,73 +107,85 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] 1/7/32/63/128-frame block matrix.
 - [x] randomized 128,000-sample parameter/event stress.
 - [x] zero-allocation real-time process probe.
-- [x] deterministic regression signature source added.
-- [x] six one-second PCM16 render fixtures added.
-- [x] M1 WAV verifier added.
-- [ ] all new test targets wired and passing on exact candidate head.
+- [x] deterministic block-invariant regression signature.
+- [x] six one-second PCM16 render fixtures.
+- [x] M1 WAV verifier.
+- [x] all M0 and M1 test targets wired and passing on implementation head `27f458d0b2530314378666a208064f5f376de4ed`.
 
-## Portability/build gate
+## Portability/build evidence
 
-Required on the exact candidate head:
+GitHub Actions run `33566199233` on exact implementation head `27f458d0b2530314378666a208064f5f376de4ed`:
 
-- [ ] GCC Debug PASS.
-- [ ] GCC Release/warnings-as-errors PASS.
-- [ ] Clang/macOS Debug PASS.
-- [ ] Clang/macOS Release/warnings-as-errors PASS.
-- [ ] MSVC Debug PASS.
-- [ ] MSVC Release `/W4 /WX` PASS.
-- [ ] ASan+UBSan PASS.
-- [ ] core compile with `-fno-exceptions -fno-rtti` PASS.
-- [ ] original M0 tests remain PASS.
-- [ ] all M1 tests PASS.
+- [x] Ubuntu/GCC Debug PASS.
+- [x] Ubuntu/GCC Release + warnings-as-errors PASS.
+- [x] macOS/Clang Debug PASS.
+- [x] macOS/Clang Release + warnings-as-errors PASS.
+- [x] Windows/MSVC Debug PASS.
+- [x] Windows/MSVC Release `/W4 /WX` PASS.
+- [x] ASan+UBSan PASS.
+- [x] core compile with `-fno-exceptions -fno-rtti` PASS.
+- [x] original M0 tests remain PASS.
+- [x] all M1 tests and fixture verifiers PASS.
+- [x] Release listening-fixture artifact retained successfully.
+
+Documentation commits after that implementation head must receive their own final exact-head CI before the PR can leave Draft.
 
 ## Hostile architecture review
 
-Before final PASS, explicitly attempt to force:
+The full attack record is `docs/M1-HOSTILE-ARCHITECTURE-REVIEW.md`.
 
-- [ ] Host-specific synthesis DSP.
-- [ ] Host-block feedback latency.
-- [ ] mandatory NoteOn/oscillator semantics.
-- [ ] integer-only tuning.
-- [ ] sample-rate-specific tuning assumptions.
-- [ ] process-time allocation.
-- [ ] instability treated as automatic error.
-- [ ] deterministic noise delegated to Host randomness.
-- [ ] Breath-Pipe/Steampipe-specific semantics into generic core APIs.
-- [ ] tuned-delay implementation promoted to universal Resonator semantics.
-- [ ] future external excitation/coupling made impossible.
+- [x] Host-specific synthesis DSP attack fails.
+- [x] Host-block feedback latency attack fails.
+- [x] mandatory NoteOn/oscillator attack fails.
+- [x] integer-only tuning attack fails.
+- [x] sample-rate-specific tuning attack fails.
+- [x] process-time allocation attack fails.
+- [x] automatic-failure-for-musical-instability attack fails.
+- [x] Host-randomness dependency attack fails.
+- [x] Breath-Pipe/Steampipe-specific generic-API leakage attack fails.
+- [x] tuned-delay-as-universal-Resonator attack fails.
+- [x] external-excitation compatibility remains intact.
+- [x] future coupling compatibility remains intact within M1 scope.
+- [x] final pitch compensation remains model-local.
+- [x] no undocumented M0 invariant violation found.
 
-No hostile item may require an undocumented M0 invariant violation.
+**Hostile review result: PASS.**
+
+Two real non-blocking weaknesses are recorded rather than hidden:
+
+1. generic M0 `EnergyState` labels are operational heuristics, not physical/psychoacoustic classifiers;
+2. M1 `tuning_hz` is a continuously movable target but not yet fully phase-compensated pitch truth across damping/interpolation settings.
 
 ## Documentation
 
 - [x] M1 milestone contract added.
 - [x] ADR-0023 added.
+- [x] hostile architecture review added.
+- [x] M1 research findings added without modifying frozen M0.19.
 - [x] signal flow documented.
 - [x] parameter IDs/ranges/defaults documented.
-- [x] fractional-delay choice documented.
+- [x] fractional-delay choice and limitations documented.
 - [x] damping/feedback/nonlinearity documented.
 - [x] fixed memory bound documented.
 - [x] determinism documented.
 - [x] limitations/non-goals documented.
 - [x] oversampling explicitly deferred pending evidence.
-- [ ] README updated after candidate behavior is CI-proven.
-- [ ] research record updated with M1 findings after CI/hostile review.
+- [x] README updated to M1 candidate state without claiming final completion.
 
 ## Protected final gate
 
 M1 is not FINAL PASS until all are true:
 
-- [ ] exact-head CI green;
-- [ ] hostile architecture review PASS;
-- [ ] deterministic fixture verification PASS;
+- [ ] final documentation head receives exact-head CI PASS;
+- [x] hostile architecture review PASS;
+- [x] deterministic fixture verification PASS;
 - [ ] human listening gate PASS;
-- [ ] no unresolved M1 blocker;
-- [ ] PR moved from Draft to Ready only after the above engineering evidence is current;
+- [ ] no unresolved M1 blocker after human listening;
+- [ ] PR moved from Draft to Ready only after all non-protected evidence is current;
 - [ ] protected merge authorised and completed;
 - [ ] post-merge `main` verification green;
-- [ ] M1 declared complete and frozen.
+- [ ] M1 declared complete and frozen in a post-merge closure record.
 
 ## Current decision
 
-**CANDIDATE ONLY.** The implementation is intentionally not declared complete while exact-head CI, hostile review, listening evidence and the protected merge gate remain unresolved.
+**ENGINEERING CANDIDATE PASS.** The code, automated tests, portability matrix, deterministic fixtures and hostile architecture gate pass. M1 is deliberately **not** declared complete because musical usefulness is a human perceptual claim and the protected merge has not occurred.
