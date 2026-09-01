@@ -22,7 +22,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
 
-  browser-m1-playtest:
+  browser-lab-build-parity:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,22 +30,78 @@ jobs:
         with:
           version: 6.0.6
           actions-cache-folder: emsdk-cache
-      - name: Build live M1 AudioWorklet/WASM synth
-        run: bash hosts/browser/m1/build.sh
-      - name: Verify browser artifact
+      - name: Build Resonant Engine Lab and Node parity module
+        env:
+          RESONANT_LAB_BUILD_NODE_PARITY: "1"
+        run: bash hosts/browser/lab/build.sh
+      - name: Verify Lab artifact and contracts
         run: |
-          test -s build/m1-browser/index.html
-          test -s build/m1-browser/app.js
-          test -s build/m1-browser/worklet.js
-          test -s build/m1-browser/resonant-m1.js
-          node --check build/m1-browser/app.js
-          node --check build/m1-browser/worklet.js
-      - name: Upload playable M1 synth
+          test -s build/resonant-lab/index.html
+          test -s build/resonant-lab/app.js
+          test -s build/resonant-lab/worklet.js
+          test -s build/resonant-lab/capture-worklet.js
+          test -s build/resonant-lab/resonant-lab.js
+          test -s build/resonant-lab/resonant-lab-node.mjs
+          test -s build/resonant-lab/build-info.js
+          node --check build/resonant-lab/app.js
+          node --check build/resonant-lab/worklet.js
+          node --check build/resonant-lab/capture-worklet.js
+          node --check hosts/browser/lab/parity.mjs
+          python3 -m json.tool lab/contracts/presets.json >/dev/null
+          python3 -m json.tool lab/contracts/acceptance-tests.json >/dev/null
+      - name: Build native parity signature
+        run: |
+          cmake -S . -B build-lab-parity -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=OFF -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-lab-parity --target resonant_lab_signature
+          ./build-lab-parity/resonant_lab_signature > build/resonant-lab/native-signature.json
+      - name: Compare native and WASM signatures
+        run: |
+          node hosts/browser/lab/parity.mjs build/resonant-lab/resonant-lab-node.mjs > build/resonant-lab/wasm-signature.json
+          python3 tests/regression/compare_lab_signatures.py build/resonant-lab/native-signature.json build/resonant-lab/wasm-signature.json
+      - name: Upload Lab artifact
         uses: actions/upload-artifact@v4
         with:
-          name: m1-playable-browser-${{ github.sha }}
+          name: resonant-engine-lab-${{ github.sha }}
           if-no-files-found: error
-          path: build/m1-browser/
+          path: build/resonant-lab/
+
+  browser-lab-smoke:
+    needs: browser-lab-build-parity
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+            install: chromium
+          - os: ubuntu-latest
+            browser: firefox
+            install: firefox
+          - os: ubuntu-latest
+            browser: webkit
+            install: webkit
+          - os: windows-latest
+            browser: msedge
+            install: none
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: resonant-engine-lab-${{ github.sha }}
+          path: build/resonant-lab
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.55.0
+      - name: Install browser engine
+        if: matrix.install != 'none'
+        run: npx playwright install --with-deps ${{ matrix.install }}
+      - name: Smoke test Lab audio path
+        env:
+          LAB_BROWSER: ${{ matrix.browser }}
+        run: node tests/browser/lab_smoke.mjs build/resonant-lab
 
   sanitizers:
     runs-on: ubuntu-latest
