@@ -45,6 +45,11 @@ if(RESONANT_ENGINE_BUILD_RENDER)
     target_link_libraries(resonant_render PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_render)
     resonant_apply_sanitizers(resonant_render)
+
+    add_executable(resonant_m1_render tools/m1_render/main.cpp)
+    target_link_libraries(resonant_m1_render PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_m1_render)
+    resonant_apply_sanitizers(resonant_m1_render)
 endif()
 
 if(RESONANT_ENGINE_BUILD_TESTS)
@@ -130,6 +135,20 @@ if(RESONANT_ENGINE_BUILD_TESTS)
                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_wav.py ${M0_SILENT_WAV} silent
             )
             set_tests_properties(resonant_render_silent_wav_structure PROPERTIES DEPENDS resonant_render_silent_smoke)
+
+            foreach(M1_SCENE IN ITEMS passive-pluck continuous feedback nonlinear sweep silent)
+                string(REPLACE "-" "_" M1_SCENE_ID "${M1_SCENE}")
+                set(M1_RENDER_WAV "${CMAKE_CURRENT_BINARY_DIR}/m1-${M1_SCENE}.wav")
+                add_test(
+                    NAME resonant_m1_render_${M1_SCENE_ID}
+                    COMMAND resonant_m1_render --scene ${M1_SCENE} --sample-rate 48000 --block-size 64 --duration 1.0 --seed 777 --output ${M1_RENDER_WAV}
+                )
+                add_test(
+                    NAME resonant_m1_verify_${M1_SCENE_ID}
+                    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_m1_wav.py ${M1_RENDER_WAV} ${M1_SCENE}
+                )
+                set_tests_properties(resonant_m1_verify_${M1_SCENE_ID} PROPERTIES DEPENDS resonant_m1_render_${M1_SCENE_ID})
+            endforeach()
         endif()
     endif()
 endif()
