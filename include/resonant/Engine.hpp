@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 namespace resonant {
 
@@ -15,6 +16,13 @@ class Engine final {
 public:
     using Input = typename Model::Input;
     using Output = typename Model::Output;
+
+    static_assert(noexcept(std::declval<Model&>().prepare(std::declval<const ProcessSpec&>())),
+                  "Model::prepare must be noexcept");
+    static_assert(noexcept(std::declval<Model&>().reset()),
+                  "Model::reset must be noexcept");
+    static_assert(noexcept(std::declval<Model&>().tick(std::declval<const Input&>())),
+                  "Model::tick must be noexcept");
 
     bool prepare(const ProcessSpec& spec) noexcept {
         if (spec.sample_rate <= 0.0 || spec.max_block_size == 0) {
@@ -34,6 +42,9 @@ public:
     }
 
     Output processSample(const Input& input) noexcept {
+        if (!prepared_) {
+            return Output{};
+        }
         return model_.tick(input);
     }
 
