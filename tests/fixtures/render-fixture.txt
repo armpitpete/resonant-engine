@@ -1,0 +1,6 @@
+# Canonical M0 offline render fixture
+--sample-rate 48000
+--block-size 64
+--duration 0.1
+--seed 777
+--output m0-canonical.wav

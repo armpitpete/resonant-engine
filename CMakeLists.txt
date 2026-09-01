@@ -3,30 +3,103 @@ cmake_minimum_required(VERSION 3.20)
 project(resonant_engine VERSION 0.0.1 LANGUAGES CXX)
 
 option(RESONANT_ENGINE_BUILD_TESTS "Build Resonant Engine tests" ON)
+option(RESONANT_ENGINE_BUILD_RENDER "Build offline render host" ON)
+option(RESONANT_ENGINE_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
+option(RESONANT_ENGINE_ENABLE_SANITIZERS "Enable ASan/UBSan on supported compilers" OFF)
 
-# M0 core target. Host adapters must depend on this target; the core must not
-# depend on browser, DAW, plugin-SDK, GUI, device, filesystem or OS APIs.
-add_library(resonant_core INTERFACE)
+add_library(resonant_core STATIC core/src/Core.cpp)
 add_library(ResonantEngine::core ALIAS resonant_core)
 
-target_include_directories(resonant_core INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+target_include_directories(resonant_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
     $<INSTALL_INTERFACE:include>
 )
+target_compile_features(resonant_core PUBLIC cxx_std_20)
 
-target_compile_features(resonant_core INTERFACE cxx_std_20)
+function(resonant_apply_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive-)
+        if(RESONANT_ENGINE_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+        if(RESONANT_ENGINE_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
+function(resonant_apply_sanitizers target)
+    if(RESONANT_ENGINE_ENABLE_SANITIZERS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+    endif()
+endfunction()
+
+resonant_apply_warnings(resonant_core)
+resonant_apply_sanitizers(resonant_core)
+
+if(RESONANT_ENGINE_BUILD_RENDER)
+    add_executable(resonant_render tools/render/main.cpp)
+    target_link_libraries(resonant_render PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_render)
+    resonant_apply_sanitizers(resonant_render)
+endif()
 
 if(RESONANT_ENGINE_BUILD_TESTS)
+    include(CTest)
     enable_testing()
 
-    add_executable(resonant_core_smoke tests/smoke.cpp)
-    target_link_libraries(resonant_core_smoke PRIVATE ResonantEngine::core)
-    add_test(NAME resonant_core_smoke COMMAND resonant_core_smoke)
+    add_executable(resonant_tests tests/unit/test_main.cpp)
+    target_link_libraries(resonant_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_tests)
+    resonant_apply_sanitizers(resonant_tests)
+    add_test(NAME resonant_tests COMMAND resonant_tests)
+
+    add_executable(resonant_property_tests tests/property/property_contract.cpp)
+    target_link_libraries(resonant_property_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_property_tests)
+    resonant_apply_sanitizers(resonant_property_tests)
+    add_test(NAME resonant_property_tests COMMAND resonant_property_tests)
+
+    add_executable(resonant_regression_tests tests/regression/render_regression.cpp)
+    target_link_libraries(resonant_regression_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_regression_tests)
+    resonant_apply_sanitizers(resonant_regression_tests)
+    add_test(NAME resonant_regression_tests COMMAND resonant_regression_tests)
 
     add_test(
         NAME resonant_core_dependency_boundary
         COMMAND ${CMAKE_COMMAND}
-            -DCORE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/include/resonant
+            -DCORE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/core
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_core_boundary.cmake
     )
+
+    if(RESONANT_ENGINE_BUILD_RENDER)
+        set(M0_RENDER_WAV "${CMAKE_CURRENT_BINARY_DIR}/m0-canonical.wav")
+        add_test(
+            NAME resonant_render_smoke
+            COMMAND resonant_render --sample-rate 48000 --block-size 64 --duration 0.1 --seed 777 --output ${M0_RENDER_WAV}
+        )
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+        if(Python3_Interpreter_FOUND)
+            add_test(
+                NAME resonant_render_wav_structure
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_wav.py ${M0_RENDER_WAV}
+            )
+            set_tests_properties(resonant_render_wav_structure PROPERTIES DEPENDS resonant_render_smoke)
+
+            set(M0_SILENT_WAV "${CMAKE_CURRENT_BINARY_DIR}/m0-silent.wav")
+            add_test(
+                NAME resonant_render_silent_smoke
+                COMMAND resonant_render --silent --sample-rate 48000 --block-size 64 --duration 0.1 --seed 777 --output ${M0_SILENT_WAV}
+            )
+            add_test(
+                NAME resonant_render_silent_wav_structure
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_wav.py ${M0_SILENT_WAV} silent
+            )
+            set_tests_properties(resonant_render_silent_wav_structure PROPERTIES DEPENDS resonant_render_silent_smoke)
+        endif()
+    endif()
 endif()
