@@ -44,6 +44,7 @@ public:
         resonator_sum_ = 0.0;
         output_sum_ = 0.0;
         feedback_sum_ = 0.0;
+        window_peak_ = 0.0F;
         diagnostics_ = {};
     }
 
@@ -71,10 +72,11 @@ public:
         resonator_sum_ += re * re;
         output_sum_ += ou * ou;
         feedback_sum_ += fb * fb;
-        diagnostics_.peak = std::max(diagnostics_.peak, std::abs(output));
+        window_peak_ = std::max(window_peak_, std::abs(output));
+        diagnostics_.peak = window_peak_;
         ++count_;
 
-        if (diagnostics_.peak >= runaway_peak_) {
+        if (window_peak_ >= runaway_peak_) {
             diagnostics_.runaway_detected = true;
         }
         if (count_ >= observation_frames_) {
@@ -101,6 +103,7 @@ private:
         diagnostics_.resonator_rms = std::sqrt(resonator_sum_ / divisor);
         diagnostics_.output_rms = std::sqrt(output_sum_ / divisor);
         diagnostics_.feedback_rms = std::sqrt(feedback_sum_ / divisor);
+        diagnostics_.peak = window_peak_;
 
         constexpr Accumulator silence = 1.0e-7;
         if (diagnostics_.runaway_detected) {
@@ -117,12 +120,13 @@ private:
 
         count_ = 0;
         excitation_sum_ = resonator_sum_ = output_sum_ = feedback_sum_ = 0.0;
-        diagnostics_.peak = 0.0F;
+        window_peak_ = 0.0F;
     }
 
     std::uint32_t observation_frames_{256};
     std::uint32_t count_{0};
     Sample runaway_peak_{8.0F};
+    Sample window_peak_{0.0F};
     Accumulator excitation_sum_{0.0};
     Accumulator resonator_sum_{0.0};
     Accumulator output_sum_{0.0};
