@@ -10,6 +10,18 @@ int main() {
     using Engine = resonant::Engine<resonant::ReferenceFeedbackProbe>;
 
     Engine engine;
+
+    Engine::Input pre_prepare_input{};
+    pre_prepare_input.excitation = 1.0f;
+    const auto pre_prepare_output = engine.processSample(pre_prepare_input);
+    assert(pre_prepare_output.sample == 0.0f);
+    assert(pre_prepare_output.feedback_tap == 0.0f);
+
+    assert(!engine.prepare({0.0, 64}));
+    const auto invalid_prepare_output = engine.processSample(pre_prepare_input);
+    assert(invalid_prepare_output.sample == 0.0f);
+    assert(invalid_prepare_output.feedback_tap == 0.0f);
+
     const bool prepared = engine.prepare({48000.0, 64});
     assert(prepared);
     assert(engine.model().sampleRate() == 48000.0f);
