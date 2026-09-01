@@ -1,105 +1,108 @@
-# M0 Foundation Execution — M0.1 to M0.4
+# M0 Foundation Execution Status
 
-## Canonical M0 statement
+This status file is aligned to the canonical 22-section M0 task list supplied for Resonant Engine.
 
-M0 establishes a portable real-time DSP architecture specifically capable of supporting expressive, continuously excited resonant systems, while remaining general enough for strings, structures, coupled resonators and impossible synthetic bodies later.
+## Current bounded slice
 
-Special design priority: **air / pipe / noise is a primary sonic goal.**
+| Section | Canonical title | Branch status |
+|---|---|---|
+| M0.1 | Product & Scope Contract | **APPROVED** |
+| M0.2 | Sonic Design Contract | **APPROVED** |
+| M0.3 | Core Terminology & Concept Model | **APPROVED** |
+| M0.4 | Portable DSP Core Boundary | **APPROVED** |
+| M0.21 | Breath Pipe Architecture Review | **EARLY PASS — final review still required later** |
 
-## M0.1 — Product and architecture contract
+## M0.1 evidence
 
-Status: **candidate complete**
+`docs/architecture/PRODUCT_SCOPE.md` now defines:
 
-Frozen for M0:
+- canonical product vision and M0 statement;
+- what Resonant Engine is and is not;
+- browser, VST3/DAW, embedded, imported-synth and future Geophony use;
+- the single-shared-core rule and prohibition on host-specific DSP duplication;
+- M0 boundaries and non-goals;
+- post-M0/M1 relationship;
+- MIT as the initial licence;
+- Semantic Versioning and pre-1.0 break policy;
+- C++20 and initial compiler/toolchain baseline;
+- M0 acceptance basis;
+- explicit anti-Steampipe-clone scope review.
 
-- one host-independent DSP core;
-- browser, DAW, embedded hardware and other instruments are adapters around that core;
-- no host framework types in the DSP contract;
-- the architecture must support continuously excited systems rather than only note-triggered oscillator voices;
-- future physical models may contain bidirectional interaction and active feedback;
-- pipe-specific behavior must not become a generic-core assumption.
+`docs/architecture/INVARIANTS.md` is the canonical invariant set.
 
-Acceptance evidence:
+**M0.1: complete on branch.**
 
-- `README.md` carries the canonical product and M0 statements;
-- `include/resonant/Engine.hpp` exposes only standard C++ types;
-- the reference model is injected into the engine as a compile-time model type.
+## M0.2 evidence
 
-## M0.2 — Portable DSP core contract
+`docs/architecture/AIR_PIPE_NOISE.md` defines:
 
-Status: **candidate complete**
+- air as energy/excitation rather than a noise overlay;
+- pressure and turbulence;
+- continuous and transient excitation;
+- excitation/resonator interaction;
+- passive, regenerative, self-sustaining and unstable resonance;
+- overblow;
+- noise-to-pitch and pitch-to-noise transition behavior;
+- physically plausible and deliberately impossible behavior;
+- transition behavior as more important than static preset snapshots;
+- the protected Breath Pipe Reference Voice and signal path;
+- required future expressive controls and continuous behavior;
+- sonic acceptance vocabulary;
+- realism as optional;
+- the requirement that a technically good model must also become a good instrument.
 
-Current contract:
+**M0.2: complete on branch.**
 
-- C++17 baseline;
-- explicit sample rate and maximum host block size;
-- model-owned state;
-- deterministic `prepare`, `reset`, `tick` lifecycle;
-- raw/fixed caller-owned buffers for block adaptation;
-- no required heap allocation in the process path;
-- no required threads, locks, file I/O, UI APIs or host callbacks in the process path.
+## M0.3 evidence
 
-Reason for C++17: it is broadly supportable across native hosts, WebAssembly toolchains and embedded toolchains without making a newer language runtime a hard dependency.
+`docs/architecture/GLOSSARY.md` defines every canonical term listed by M0.3 and explicitly resolves common confusions including Engine/Host, Exciter/Excitation, Pressure/expression event, Turbulence/noise, Resonator/oscillator, Loss/Damping, Nonlinearity/Saturation, musical/numerical instability, Movement/Modulation, State/Preset, Processing Block/feedback interval, Control Rate/sample accuracy and Determinism/bit identity.
 
-## M0.3 — Real-time processing contract
+The glossary is normative for implementation.
 
-Status: **candidate complete**
+**M0.3: complete on branch.**
 
-The core semantic unit is one sample:
+## M0.4 evidence
 
-`model.tick(input) -> output`
+`docs/architecture/CORE_BOUNDARY.md` defines:
 
-Hosts may deliver blocks, but `Engine::processBlock` is only an adapter that repeatedly calls the same sample operation.
+- responsibilities inside/outside `resonant_core`;
+- browser/Web Audio/JavaScript/JUCE/VST/DAW/USB/MIDI-device/GUI/OS/filesystem dependency prohibitions;
+- the core-facing Host boundary;
+- conceptual audio-buffer, event-input, parameter, external-audio, diagnostics and lifecycle interfaces;
+- dependency direction;
+- thin-wrapper criterion;
+- browser, VST3 and embedded architecture reviews.
 
-This is intentional. Feedback and exciter/resonator interaction must be expressible inside the model at sample resolution. A host block boundary must never become the feedback boundary.
+CMake now exposes the shared target as `resonant_core` with C++20. `cmake/check_core_boundary.cmake` adds an automated dependency-boundary guard for current core headers.
 
-Real-time invariants:
+Detailed buffer/event/parameter shapes remain intentionally deferred to M0.6–M0.8 so M0.4 does not freeze them prematurely.
 
-- process calls are `noexcept`;
-- no allocation is required by the engine process loop;
-- controls may change every sample;
-- state remains owned by the model instance;
-- reset must return the model to a deterministic zero-energy state;
-- invalid host preparation data is rejected before processing.
+**M0.4: complete on branch.**
 
-## M0.4 — Closed-loop architecture probe
+## Architectural probe
 
-Status: **candidate complete**
+`include/resonant/Engine.hpp` and `ReferenceFeedbackProbe.hpp` remain **probes**, not the final M0 API. Their purpose is to prove that Host block processing can contain model-owned sample-by-sample closed-loop behavior.
 
-`ReferenceFeedbackProbe` is deliberately not a finished resonator or Breath Pipe voice. It exists only to prove that one model can contain:
+The probe must not be allowed to silently decide later event, parameter, channel, graph or exciter/resonator interfaces before their canonical M0 sections execute.
 
-1. continuous excitation;
-2. returned resonant energy;
-3. active feedback amount;
-4. feedback filtering;
-5. nonlinearity inside the loop;
-6. bounded output behavior;
-7. sample-by-sample control movement.
+## Early M0.21
 
-The smoke test drives all of these continuously over 256 samples and checks finite, bounded output plus deterministic reset.
+The Breath Pipe review has been repeated against the canonical M0.1–M0.4 contracts. Its detailed walk, hostile review, weaknesses and early-pass decision are in `docs/M0.21-BREATH-PIPE-ARCHITECTURE-REVIEW.md`.
 
-## Architectural boundary established by M0.1–M0.4
+This is **not** the final M0.21 gate. The canonical execution order requires another hostile Breath Pipe review after M0.5–M0.20 have established the full architecture.
 
-The generic engine owns lifecycle and host adaptation. A concrete physical/resonant model owns its internal signal topology.
+## Next canonical execution slice
 
-That boundary is required for future systems such as:
+Proceed to **M0.5–M0.13** in order:
 
-- Breath Pipe;
-- strings and bowed/plucked structures;
-- coupled resonator networks;
-- feedback structures;
-- deliberately impossible synthetic bodies.
+1. M0.5 — Real-Time Processing Contract
+2. M0.6 — Audio Processing Model
+3. M0.7 — Event & Timing Contract
+4. M0.8 — Parameter Contract
+5. M0.9 — Exciter & Resonator Interfaces
+6. M0.10 — Feedback Path Contract
+7. M0.11 — Energy & Stability Model
+8. M0.12 — Determinism & Randomness Contract
+9. M0.13 — State & Lifecycle Contract
 
-## Not claimed yet
-
-M0.1–M0.4 do **not** yet claim:
-
-- a perceptually convincing pipe;
-- waveguide accuracy;
-- modal-bank accuracy;
-- overblow behavior;
-- alias-safe nonlinear feedback at all gains;
-- browser/DAW/embedded adapter completion;
-- production CPU or memory budgets.
-
-Those remain later M0 work and must be proven rather than inferred from this foundation.
+M0.20 follows that slice to freeze the major decisions before build/repository/test/render/portability work hardens them further.
