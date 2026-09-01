@@ -63,6 +63,12 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_failure_tests)
     add_test(NAME resonant_failure_tests COMMAND resonant_failure_tests)
 
+    add_executable(resonant_stability_tests tests/unit/test_stability.cpp)
+    target_link_libraries(resonant_stability_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_stability_tests)
+    resonant_apply_sanitizers(resonant_stability_tests)
+    add_test(NAME resonant_stability_tests COMMAND resonant_stability_tests)
+
     add_executable(resonant_property_tests tests/property/property_contract.cpp)
     target_link_libraries(resonant_property_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_property_tests)
