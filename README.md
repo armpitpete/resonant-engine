@@ -37,18 +37,31 @@ M0 is frozen as the baseline for later milestones. Later work may extend it thro
 
 ## M1 — First Resonator
 
-**Status: CANDIDATE — engineering gates pass; human listening gate remains.**
+**Status: CANDIDATE — engineering gates pass; live play-test gate remains.**
 
 M1 adds the first concrete musical resonator without changing the frozen Engine/Host architecture:
 
 - `ContinuousNoiseExciter` — deterministic continuous noise, transient and arbitrary external-audio excitation;
 - `TunedDelayResonator` — fixed-memory fractional-delay resonance with damping, passive loss, active regeneration and bounded in-loop nonlinearity;
 - `FirstResonatorVoice` — sample-accurate, smoothed composition of those primitives with energy/stability observation;
-- six deterministic listening/regression fixtures: passive pluck, continuous, feedback, nonlinear, sweep and silence.
+- deterministic offline render scenes used only for regression evidence;
+- a browser AudioWorklet/WASM play-test host that runs the same C++ `FirstResonatorVoice` live.
 
 The M1 reference model is deliberately generic and replaceable. It is **not Breath Pipe**, not a Steampipe clone and not a rule that future Resonant Engine models must use tuned delays.
 
-Exact implementation-head CI has passed Ubuntu, macOS and Windows in Debug/Release, ASan+UBSan and the no-exceptions/no-RTTI core probe. The hostile architecture review found no M0 invariant violation. M1 remains a candidate until its retained audio fixtures pass human perceptual acceptance and the final protected merge gate.
+Exact implementation-head CI has passed Ubuntu, macOS and Windows in Debug/Release, ASan+UBSan and the no-exceptions/no-RTTI core probe. The hostile architecture review found no M0 invariant violation. M1 remains a candidate until the live synth passes human playability acceptance and the final protected merge gate.
+
+### Play the M1 synth
+
+Build the browser acceptance host with Emscripten:
+
+```sh
+./hosts/browser/m1/build.sh
+```
+
+Then serve `build/m1-browser/` on localhost. The CI-produced `m1-playable-browser-*` artifact contains the already-built harness and launch scripts.
+
+The play-test supports computer-keyboard notes, Web MIDI notes, CC1/mod-wheel or channel pressure as continuous excitation, and live control of turbulence, damping, regeneration, nonlinearity and resonator/exciter interaction.
 
 ## Protected future Breath Pipe reference
 
@@ -82,7 +95,7 @@ silence
 → noise
 ```
 
-## Build
+## Build and test
 
 ```sh
 cmake -S . -B build -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON
@@ -90,28 +103,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-M0 deterministic architecture fixture:
-
-```sh
-./build/resonant_render --sample-rate 48000 --block-size 64 --duration 0.1 --seed 777 --output m0-canonical.wav
-```
-
-M1 first-resonator listening fixture:
-
-```sh
-./build/resonant_m1_render --scene continuous --sample-rate 48000 --block-size 64 --duration 1.0 --seed 777 --output m1-continuous.wav
-```
-
-Available M1 scenes:
-
-```text
-passive-pluck
-continuous
-feedback
-nonlinear
-sweep
-silent
-```
+Offline render tools exist for deterministic regression evidence. They are not the human M1 acceptance method.
 
 ## Documentation
 
@@ -122,6 +114,7 @@ M1:
 - `docs/M1-HOSTILE-ARCHITECTURE-REVIEW.md`
 - `docs/decisions/ADR-0023-M1-FIRST-RESONATOR.md`
 - `docs/research/M1-FIRST-RESONATOR.md`
+- `hosts/browser/m1/README.md`
 
 Frozen M0 baseline:
 
