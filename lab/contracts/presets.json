@@ -1,0 +1,30 @@
+{
+  "schema": "resonant-engine-lab-preset/v1",
+  "presets": [
+    {
+      "id": "neutral",
+      "name": "Neutral",
+      "parameters": {"102": 0.30, "103": 0.0, "104": 0.20, "105": 0.0, "106": 0.65, "107": 0.0}
+    },
+    {
+      "id": "pluck",
+      "name": "Pluck",
+      "parameters": {"102": 0.18, "103": 0.06, "104": 0.18, "105": 0.0, "106": 0.55, "107": 0.05}
+    },
+    {
+      "id": "sustained-pipe",
+      "name": "Sustained pipe",
+      "parameters": {"102": 0.22, "103": 0.55, "104": 0.30, "105": 0.42, "106": 0.72, "107": 0.25}
+    },
+    {
+      "id": "feedback",
+      "name": "Feedback sweep",
+      "parameters": {"102": 0.18, "103": 0.0, "104": 0.60, "105": 0.12, "106": 0.70, "107": 0.40}
+    },
+    {
+      "id": "extreme",
+      "name": "Extreme stability",
+      "parameters": {"102": 0.0, "103": 1.50, "104": 1.0, "105": 1.0, "106": 1.0, "107": 1.0}
+    }
+  ]
+}
