@@ -4,6 +4,8 @@ Resonant Engine is a portable resonant/physical synthesis platform capable of ru
 
 ## M0 — Portable Real-Time Foundation
 
+**Status: COMPLETE AND FROZEN.**
+
 M0 establishes a portable real-time DSP architecture specifically capable of supporting expressive, continuously excited resonant systems, while remaining general enough for strings, structures, coupled resonators and impossible synthetic bodies later.
 
 **Primary sonic design priority:** air / pipe / noise.
@@ -12,7 +14,7 @@ M0 is architecturally centered on one C++20 `resonant_core`. Browser/WASM, VST3/
 
 ## M0 result
 
-The completion branch contains the full 22-section M0 contract/runtime foundation:
+The merged `main` branch contains the full 22-section M0 contract/runtime foundation:
 
 - normative product/scope, sonic, terminology and core-boundary contracts;
 - hard real-time processing rules;
@@ -25,11 +27,13 @@ The completion branch contains the full 22-section M0 contract/runtime foundatio
 - Debug/Release, MSVC/GCC/Clang and sanitizer CI;
 - deterministic offline WAV render host;
 - unit/property/regression testing foundation;
-- WASM/VST3/embedded portability proof;
+- WASM/VST3/embedded portability proof for M0 scope;
 - research/reference record and accepted ADR register;
 - final hostile Breath Pipe architecture review and M0 completion gate.
 
 The current `ReferenceFeedbackProbe` is an **architectural fixture**, not the Breath Pipe voice and not a finished physical model.
+
+M0 is frozen as the baseline for later milestones. Later work may extend it through explicit architecture decisions, but must not silently reinterpret the M0 invariants or Host/core boundary.
 
 ## Protected future Breath Pipe reference
 
