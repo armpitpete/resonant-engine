@@ -65,10 +65,10 @@
       "id": "A05",
       "name": "C2-C6 pitch run",
       "preset": "neutral",
-      "duration_ms": 11400,
-      "expected": "All notes C2-C6 render finitely; fundamental tracking and cents error are captured per note.",
+      "duration_ms": 30200,
+      "expected": "All notes C2-C6 render finitely; each note is held long enough for the Lab F0 analyser to settle before target-frequency and cents-error evidence is marked.",
       "program": [
-        {"op": "pitch_run", "at_ms": 0, "start_midi": 36, "end_midi": 84, "note_ms": 180, "gap_ms": 40, "settle_ms": 120, "velocity": 0.78}
+        {"op": "pitch_run", "at_ms": 0, "start_midi": 36, "end_midi": 84, "note_ms": 500, "gap_ms": 100, "settle_ms": 350, "velocity": 0.78}
       ]
     },
     {
