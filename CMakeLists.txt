@@ -18,7 +18,15 @@ target_compile_features(resonant_core INTERFACE cxx_std_20)
 
 if(RESONANT_ENGINE_BUILD_TESTS)
     enable_testing()
+
     add_executable(resonant_core_smoke tests/smoke.cpp)
     target_link_libraries(resonant_core_smoke PRIVATE ResonantEngine::core)
     add_test(NAME resonant_core_smoke COMMAND resonant_core_smoke)
+
+    add_test(
+        NAME resonant_core_dependency_boundary
+        COMMAND ${CMAKE_COMMAND}
+            -DCORE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/include/resonant
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_core_boundary.cmake
+    )
 endif()
