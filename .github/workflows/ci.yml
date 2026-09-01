@@ -28,6 +28,7 @@ jobs:
           name: m1-listening-fixtures-${{ github.sha }}
           if-no-files-found: error
           path: |
+            build/m0-canonical.wav
             build/m1-passive-pluck.wav
             build/m1-continuous.wav
             build/m1-feedback.wav
