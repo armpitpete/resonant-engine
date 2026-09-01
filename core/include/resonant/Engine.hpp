@@ -94,21 +94,16 @@ public:
             const auto input_span = std::span<const Sample>{input_frame.data(), audio.input_channels};
             auto output_span = std::span<Sample>{output_frame.data(), audio.output_channels};
             if (!model_.processSample(input_span, output_span)) {
-                for (std::uint32_t ch = 0; ch < audio.output_channels; ++ch) {
-                    audio.outputs[ch][frame] = 0.0F;
-                }
-                for (std::uint32_t rest = frame + 1; rest < audio.frames; ++rest) {
-                    for (std::uint32_t ch = 0; ch < audio.output_channels; ++ch) {
-                        audio.outputs[ch][rest] = 0.0F;
-                    }
-                }
+                zeroFromFrame(audio, frame);
                 return ProcessStatus::NumericalFailure;
             }
             for (std::uint32_t ch = 0; ch < audio.output_channels; ++ch) {
                 if (!std::isfinite(output_frame[ch])) {
-                    audio.outputs[ch][frame] = 0.0F;
+                    zeroFromFrame(audio, frame);
                     return ProcessStatus::NumericalFailure;
                 }
+            }
+            for (std::uint32_t ch = 0; ch < audio.output_channels; ++ch) {
                 audio.outputs[ch][frame] = output_frame[ch];
             }
         }
@@ -121,6 +116,15 @@ public:
     [[nodiscard]] const Model& model() const noexcept { return model_; }
 
 private:
+    static void zeroFromFrame(const AudioBlockView& audio,
+                              std::uint32_t start_frame) noexcept {
+        for (std::uint32_t frame = start_frame; frame < audio.frames; ++frame) {
+            for (std::uint32_t ch = 0; ch < audio.output_channels; ++ch) {
+                audio.outputs[ch][frame] = 0.0F;
+            }
+        }
+    }
+
     Model model_{};
     ProcessSpec spec_{};
     bool prepared_{false};
