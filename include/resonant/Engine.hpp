@@ -11,6 +11,10 @@ struct ProcessSpec {
     std::uint32_t max_block_size = 128;
 };
 
+// M0 architecture probe, not the final host-facing Engine API. The canonical
+// processing, event, parameter and exciter/resonator contracts are defined by
+// M0.6-M0.10. This type exists to prove that host block delivery can contain a
+// model-owned sample-by-sample closed loop without host-framework types.
 template <typename Model>
 class Engine final {
 public:
