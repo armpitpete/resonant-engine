@@ -108,9 +108,22 @@ Exact CI and cross-compilation support is proven in M0.14 and M0.17. The languag
 
 The normative invariants are recorded in `docs/architecture/INVARIANTS.md`.
 
-## M0 acceptance
+## M0 acceptance criteria
 
-M0 is complete only when M0.22 passes. In particular, completion requires one portable core, real-time-safe processing rules, sample-accurate control/event foundations, deterministic randomness, feedback/energy/stability architecture, host portability review and a successful Breath Pipe architecture gate.
+M0 is accepted only when **every M0.22 gate passes**. In practical terms that means:
+
+- the canonical product, scope, sonic, terminology and DSP contracts are complete and mutually consistent;
+- `resonant_core`, tests and offline renderer configure/build cleanly in Debug and Release;
+- the demonstrated process path constructs, prepares, processes silence, resets and destroys cleanly;
+- sample-accurate events and parameter smoothing are demonstrated;
+- deterministic PRNG behavior is demonstrated;
+- demonstrated processing remains finite and does not allocate in the real-time path;
+- browser/WASM, VST3 and embedded architecture reviews pass without requiring Host-specific DSP;
+- active/passive resonators, continuous/arbitrary excitation, feedback filtering/nonlinearity, energy/stability observation and future coupling/graphs all fit the architecture;
+- the final hostile Breath Pipe Reference Voice review passes with no architectural hack;
+- no unresolved M0 blocker remains.
+
+The detailed authoritative checklist remains M0.22; this section states the M0.1 acceptance contract without duplicating every sub-item.
 
 ## Anti-clone review
 
