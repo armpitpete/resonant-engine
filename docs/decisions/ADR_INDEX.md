@@ -55,17 +55,23 @@ All decisions below are **Accepted for M0**. A later contradiction must supersed
 ## ADR-0017 — Energy/stability observability
 **Decision:** cheap operational energy/finite/runaway diagnostics are part of the architecture. **Alternatives:** rely only on final output clipping. **Consequences:** hosts/tests can see growth and failure while models can remain musically unstable.
 
-## ADR-0018 — Future arbitrary excitation and coupling
-**Decision:** external audio, resonator-as-exciter and coupling ports must fit without replacing the Engine. **Alternatives:** fixed noise/impulse source or one-way resonator API. **Consequences:** microphone/sample sources and coupled structures remain future-compatible.
+## ADR-0018 — Future arbitrary excitation
+**Decision:** external audio, microphone/sample streams and resonator output must be usable as excitation without replacing the Engine. **Alternatives:** restrict excitation to built-in noise/impulses or one fixed exciter family. **Consequences:** future sampled, live-input and resonator-as-exciter models fit the same core.
 
-## ADR-0019 — Browser via WASM/shared core
+## ADR-0019 — Future resonator coupling
+**Decision:** resonators may expose bounded coupling ports and a containing model may route them bidirectionally without changing the Engine contract. **Alternatives:** one-way serial resonator chains or a mandatory graph runtime in M0. **Consequences:** coupled structures remain possible while graph scheduling is deferred until needed.
+
+## ADR-0020 — Browser via WASM/shared core
 **Decision:** browser Host compiles/bridges the same core through WASM/AudioWorklet. **Alternatives:** JavaScript/WebAudio reimplementation. **Consequences:** no duplicated synthesis algorithms; wrapper handles browser scheduling/buffers.
 
-## ADR-0020 — VST and embedded are wrappers around the same core
-**Decision:** VST3/JUCE and embedded device APIs live outside `resonant_core`. **Alternatives:** plugin/device-specific engine forks. **Consequences:** both targets remain first-class while the DSP contract stays host-neutral.
+## ADR-0021 — VST as Host wrapper
+**Decision:** VST3 and optional JUCE integration live in a thin Host wrapper around `resonant_core`. **Alternatives:** plugin-SDK types in the core or a plugin-specific DSP fork. **Consequences:** DAW integration is first-class without defining core semantics.
+
+## ADR-0022 — Embedded hardware is a first-class target
+**Decision:** embedded device, DMA, MIDI/USB and control APIs remain outside `resonant_core`, which must stay viable for bounded-memory ARM-class Hosts. **Alternatives:** desktop-first core with a later embedded port or device-specific DSP fork. **Consequences:** embedded constraints influence core boundaries now while board-specific implementation remains later work.
 
 ## Contradiction review
 
-No accepted ADR contradicts another: ADR-0002/0007/0008/0019/0020 align dependency direction; ADR-0009/0010/0011 align sample timing; ADR-0013/0014 align real-time constraints; ADR-0015/0016/0017 align feedback/stability; ADR-0018 extends rather than narrows the interface.
+No accepted ADR contradicts another: ADR-0002/0007/0008/0020/0021/0022 align dependency direction; ADR-0009/0010/0011 align sample timing; ADR-0013/0014 align real-time constraints; ADR-0015/0016/0017 align feedback/stability; ADR-0018 and ADR-0019 extend excitation/coupling without narrowing the Engine.
 
 **M0.20 ADR set: APPROVED.**
