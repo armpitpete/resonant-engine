@@ -20,6 +20,28 @@ int main() {
             return 1;
         }
     }
+
+    const auto voice0_seed = resonant::deriveVoiceSeed(777, 0);
+    const auto voice1_seed = resonant::deriveVoiceSeed(777, 1);
+    resonant::Pcg32 voice0_a{voice0_seed};
+    resonant::Pcg32 voice0_b{voice0_seed};
+    resonant::Pcg32 voice1{voice1_seed};
+    bool independent_voice_differs = false;
+    for (int i = 0; i < 1024; ++i) {
+        const auto a = voice0_a.nextUInt();
+        const auto b = voice0_b.nextUInt();
+        const auto c = voice1.nextUInt();
+        if (a != b) {
+            std::cerr << "derived voice seed is not deterministic\n";
+            return 1;
+        }
+        independent_voice_differs = independent_voice_differs || (a != c);
+    }
+    if (!independent_voice_differs) {
+        std::cerr << "independent voice seed did not produce an independent sequence\n";
+        return 1;
+    }
+
     std::cout << "PASS: M0 property contracts\n";
     return 0;
 }
