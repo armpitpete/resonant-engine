@@ -1,6 +1,6 @@
 # M1 — First Resonator Completion Gate
 
-Status: **CANDIDATE ENGINEERING PASS — HUMAN LISTENING GATE REQUIRED**
+Status: **CANDIDATE ENGINEERING PASS — LIVE PLAY GATE REQUIRED**
 
 M0 is frozen at merged `main` before this milestone. M1 may extend capability but may not silently reinterpret an M0 invariant.
 
@@ -28,7 +28,7 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] no Host DSP added.
 - [x] no Engine API rewrite required.
 
-## Excitation
+## Excitation and expression
 
 - [x] deterministic `ContinuousNoiseExciter` implemented.
 - [x] explicit 64-bit seed ownership.
@@ -38,27 +38,36 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] arbitrary external-audio excitation supported.
 - [x] returned-resonator interaction path exercised without defining a reed/jet model.
 - [x] reset restores deterministic exciter state.
+- [x] tuning uses sample-rate-aware smoothing.
+- [x] damping, regeneration, nonlinearity, excitation, turbulence and interaction move continuously.
+- [x] `Pitch` and `Pressure` retain the existing sample-accurate event route.
 
-## Movement and expression
-
-- [x] tuning moves through existing sample-rate-aware smoother.
-- [x] damping moves sample-continuously.
-- [x] regeneration/feedback moves sample-continuously.
-- [x] nonlinearity moves sample-continuously.
-- [x] excitation/turbulence/interaction move sample-continuously.
-- [x] `Pitch` and `Pressure` use the existing sample-accurate event path.
-- [x] deterministic sweep fixture contains a sample-accurate mid-render pitch event.
-
-## Sonic-state evidence
+## Sonic-state engineering evidence
 
 - [x] exact silence path exists.
 - [x] passive transient/ringing path exists.
 - [x] continuous deterministic-noise excitation path exists.
 - [x] regenerative state exists.
 - [x] aggressive nonlinear finite state exists.
-- [x] return-to-silence/passive decay demonstrated by fixture verification.
-- [x] six canonical M1 render scenes defined and retained as a CI artifact.
-- [ ] human listening gate: fixtures judged musically useful and materially beyond `ReferenceFeedbackProbe`.
+- [x] return-to-silence/passive decay is regression-tested.
+- [x] deterministic offline render scenes cover passive, continuous, regenerative, nonlinear, sweep and silence states.
+
+Offline WAV fixtures are **regression evidence only**. They do not satisfy the human M1 gate.
+
+## Interactive acceptance host
+
+- [x] browser acceptance host added under `hosts/browser/m1/`.
+- [x] host compiles the real C++ `FirstResonatorVoice` to WebAssembly.
+- [x] DSP runs in an AudioWorklet rather than on the browser main thread.
+- [x] JavaScript contains transport/UI/MIDI only; synthesis is not duplicated outside `resonant_core`.
+- [x] computer-keyboard pitch input provided.
+- [x] Web MIDI note input provided.
+- [x] CC1/mod wheel and channel pressure map to continuous excitation for the play test.
+- [x] live excitation, turbulence, damping, regeneration, nonlinearity and interaction controls provided.
+- [x] transient trigger and resonator reset provided.
+- [ ] Emscripten/AudioWorklet harness builds successfully on the exact current candidate head.
+- [ ] playable browser artifact retained by CI.
+- [ ] **human play-test gate PASS:** live playing demonstrates a musically useful resonator materially beyond `ReferenceFeedbackProbe`.
 
 ## Determinism
 
@@ -90,7 +99,7 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] musically aggressive finite operation remains legal.
 - [x] coarse generic `EnergyState` classification limitation documented rather than overclaimed.
 
-## Test coverage and deterministic fixtures
+## Automated test coverage
 
 - [x] concept compatibility test.
 - [x] multi-sample-rate prepare test.
@@ -108,27 +117,25 @@ M0 is frozen at merged `main` before this milestone. M1 may extend capability bu
 - [x] randomized 128,000-sample parameter/event stress.
 - [x] zero-allocation real-time process probe.
 - [x] deterministic block-invariant regression signature.
-- [x] six one-second PCM16 render fixtures.
-- [x] M1 WAV verifier.
-- [x] all M0 and M1 test targets wired and passing on implementation head `27f458d0b2530314378666a208064f5f376de4ed`.
+- [x] offline render regression verifier.
+- [x] original M0 tests remain in the suite.
 
 ## Portability/build evidence
 
-GitHub Actions run `33566199233` on exact implementation head `27f458d0b2530314378666a208064f5f376de4ed`:
+Previously green implementation head `f7824824e59b9402975e040624a4d3b3e68d6a5d` passed:
 
-- [x] Ubuntu/GCC Debug PASS.
-- [x] Ubuntu/GCC Release + warnings-as-errors PASS.
-- [x] macOS/Clang Debug PASS.
-- [x] macOS/Clang Release + warnings-as-errors PASS.
-- [x] Windows/MSVC Debug PASS.
-- [x] Windows/MSVC Release `/W4 /WX` PASS.
-- [x] ASan+UBSan PASS.
-- [x] core compile with `-fno-exceptions -fno-rtti` PASS.
-- [x] original M0 tests remain PASS.
-- [x] all M1 tests and fixture verifiers PASS.
-- [x] Release listening-fixture artifact retained successfully.
+- [x] Ubuntu/GCC Debug.
+- [x] Ubuntu/GCC Release + warnings-as-errors.
+- [x] macOS/Clang Debug.
+- [x] macOS/Clang Release + warnings-as-errors.
+- [x] Windows/MSVC Debug.
+- [x] Windows/MSVC Release `/W4 /WX`.
+- [x] ASan+UBSan.
+- [x] core compile with `-fno-exceptions -fno-rtti`.
+- [x] original M0 tests.
+- [x] all M1 native tests and deterministic fixture verifiers.
 
-Documentation commits after that implementation head must receive their own final exact-head CI before the PR can leave Draft.
+The live browser acceptance-host correction changes the candidate head, so a new exact-head CI PASS is required before PR #4 can leave Draft.
 
 ## Hostile architecture review
 
@@ -151,36 +158,20 @@ The full attack record is `docs/M1-HOSTILE-ARCHITECTURE-REVIEW.md`.
 
 **Hostile review result: PASS.**
 
-Two real non-blocking weaknesses are recorded rather than hidden:
+Two real non-blocking weaknesses remain recorded:
 
 1. generic M0 `EnergyState` labels are operational heuristics, not physical/psychoacoustic classifiers;
 2. M1 `tuning_hz` is a continuously movable target but not yet fully phase-compensated pitch truth across damping/interpolation settings.
-
-## Documentation
-
-- [x] M1 milestone contract added.
-- [x] ADR-0023 added.
-- [x] hostile architecture review added.
-- [x] M1 research findings added without modifying frozen M0.19.
-- [x] signal flow documented.
-- [x] parameter IDs/ranges/defaults documented.
-- [x] fractional-delay choice and limitations documented.
-- [x] damping/feedback/nonlinearity documented.
-- [x] fixed memory bound documented.
-- [x] determinism documented.
-- [x] limitations/non-goals documented.
-- [x] oversampling explicitly deferred pending evidence.
-- [x] README updated to M1 candidate state without claiming final completion.
 
 ## Protected final gate
 
 M1 is not FINAL PASS until all are true:
 
-- [ ] final documentation head receives exact-head CI PASS;
+- [ ] current exact head receives full CI PASS, including browser/WASM harness build;
 - [x] hostile architecture review PASS;
-- [x] deterministic fixture verification PASS;
-- [ ] human listening gate PASS;
-- [ ] no unresolved M1 blocker after human listening;
+- [x] deterministic regression evidence PASS;
+- [ ] interactive human play-test PASS;
+- [ ] no unresolved M1 blocker after live play testing;
 - [ ] PR moved from Draft to Ready only after all non-protected evidence is current;
 - [ ] protected merge authorised and completed;
 - [ ] post-merge `main` verification green;
@@ -188,4 +179,4 @@ M1 is not FINAL PASS until all are true:
 
 ## Current decision
 
-**ENGINEERING CANDIDATE PASS.** The code, automated tests, portability matrix, deterministic fixtures and hostile architecture gate pass. M1 is deliberately **not** declared complete because musical usefulness is a human perceptual claim and the protected merge has not occurred.
+**ENGINEERING CANDIDATE PASS, HUMAN GATE OPEN.** M1 is not accepted by listening to WAV files. It is accepted by playing the live C++ resonator through the browser host. The protected merge remains blocked until that interactive gate passes.
