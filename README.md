@@ -8,16 +8,29 @@ M0 establishes a portable real-time DSP architecture specifically capable of sup
 
 **Special design priority:** air / pipe / noise is a primary sonic goal.
 
-## Current execution slice
+## Current M0 slice
 
-M0.1–M0.4 are implemented as a foundation candidate on `m0/foundation-breath-pipe-review`, with an early M0.21 Breath Pipe architecture review completed before later architecture hardens.
+The canonical M0 roadmap contains 22 sections. The current bounded slice is:
 
-- [M0.1–M0.4 foundation contract](docs/M0-FOUNDATION.md)
-- [M0.21 early Breath Pipe architecture review](docs/M0.21-BREATH-PIPE-ARCHITECTURE-REVIEW.md)
+- **M0.1 — Product & Scope Contract** — approved on branch;
+- **M0.2 — Sonic Design Contract** — approved on branch;
+- **M0.3 — Core Terminology & Concept Model** — approved on branch;
+- **M0.4 — Portable DSP Core Boundary** — approved on branch;
+- **early M0.21 — Breath Pipe Architecture Review** — provisional pass before later core contracts harden.
+
+Canonical documents:
+
+- [Product & Scope Contract](docs/architecture/PRODUCT_SCOPE.md)
+- [Air / Pipe / Noise Sonic Design Contract](docs/architecture/AIR_PIPE_NOISE.md)
+- [Normative Glossary](docs/architecture/GLOSSARY.md)
+- [Portable DSP Core Boundary](docs/architecture/CORE_BOUNDARY.md)
+- [Architectural Invariants](docs/architecture/INVARIANTS.md)
+- [M0 foundation status](docs/M0-FOUNDATION.md)
+- [Early Breath Pipe architecture review](docs/M0.21-BREATH-PIPE-ARCHITECTURE-REVIEW.md)
 
 ## Core rule
 
-Hosts may supply blocks, but the resonant model owns the sample-by-sample closed loop. This keeps active feedback, continuous excitation and bidirectional exciter/resonator interaction inside the physical model rather than forcing them through host block boundaries.
+One C++20 `resonant_core` must serve browser, DAW/plugin, embedded and other synth hosts. Hosts may supply blocks, but the resonant model must remain able to own sample-by-sample closed-loop interaction. Host-specific DSP duplication is prohibited.
 
 ## Build
 
@@ -28,3 +41,7 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 The current reference feedback probe is an architectural test fixture, **not** the Breath Pipe voice and not a claim of finished physical modelling.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
