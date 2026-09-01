@@ -104,6 +104,12 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_regression_tests)
     add_test(NAME resonant_regression_tests COMMAND resonant_regression_tests)
 
+    add_executable(resonant_first_resonator_regression_tests tests/regression/first_resonator_regression.cpp)
+    target_link_libraries(resonant_first_resonator_regression_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_first_resonator_regression_tests)
+    resonant_apply_sanitizers(resonant_first_resonator_regression_tests)
+    add_test(NAME resonant_first_resonator_regression_tests COMMAND resonant_first_resonator_regression_tests)
+
     add_test(
         NAME resonant_core_dependency_boundary
         COMMAND ${CMAKE_COMMAND}
