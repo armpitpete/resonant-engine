@@ -8,4 +8,23 @@ M0 establishes a portable real-time DSP architecture specifically capable of sup
 
 **Special design priority:** air / pipe / noise is a primary sonic goal.
 
-The first implementation work is being developed on a bounded M0 foundation branch before protected merge review.
+## Current execution slice
+
+M0.1–M0.4 are implemented as a foundation candidate on `m0/foundation-breath-pipe-review`, with an early M0.21 Breath Pipe architecture review completed before later architecture hardens.
+
+- [M0.1–M0.4 foundation contract](docs/M0-FOUNDATION.md)
+- [M0.21 early Breath Pipe architecture review](docs/M0.21-BREATH-PIPE-ARCHITECTURE-REVIEW.md)
+
+## Core rule
+
+Hosts may supply blocks, but the resonant model owns the sample-by-sample closed loop. This keeps active feedback, continuous excitation and bidirectional exciter/resonator interaction inside the physical model rather than forcing them through host block boundaries.
+
+## Build
+
+```sh
+cmake -S . -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
+
+The current reference feedback probe is an architectural test fixture, **not** the Breath Pipe voice and not a claim of finished physical modelling.
