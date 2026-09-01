@@ -21,6 +21,19 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }}
       - name: Test
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+      - name: Upload M1 listening fixtures
+        if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-listening-fixtures-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            build/m1-passive-pluck.wav
+            build/m1-continuous.wav
+            build/m1-feedback.wav
+            build/m1-nonlinear.wav
+            build/m1-sweep.wav
+            build/m1-silent.wav
 
   sanitizers:
     runs-on: ubuntu-latest
