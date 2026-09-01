@@ -65,8 +65,8 @@ Offline WAV fixtures are **regression evidence only**. They do not satisfy the h
 - [x] CC1/mod wheel and channel pressure map to continuous excitation for the play test.
 - [x] live excitation, turbulence, damping, regeneration, nonlinearity and interaction controls provided.
 - [x] transient trigger and resonator reset provided.
-- [ ] Emscripten/AudioWorklet harness builds successfully on the exact current candidate head.
-- [ ] playable browser artifact retained by CI.
+- [x] Emscripten 6.0.6 AudioWorklet/WASM harness build PASS on correction head `e7befa4ea72bba8ee507684d203290e8c54d3bce`.
+- [x] playable browser artifact retained by CI as `m1-playable-browser-*`.
 - [ ] **human play-test gate PASS:** live playing demonstrates a musically useful resonator materially beyond `ReferenceFeedbackProbe`.
 
 ## Determinism
@@ -122,7 +122,7 @@ Offline WAV fixtures are **regression evidence only**. They do not satisfy the h
 
 ## Portability/build evidence
 
-Previously green implementation head `f7824824e59b9402975e040624a4d3b3e68d6a5d` passed:
+GitHub Actions run `33567597513` on correction head `e7befa4ea72bba8ee507684d203290e8c54d3bce` passed all nine jobs:
 
 - [x] Ubuntu/GCC Debug.
 - [x] Ubuntu/GCC Release + warnings-as-errors.
@@ -132,10 +132,11 @@ Previously green implementation head `f7824824e59b9402975e040624a4d3b3e68d6a5d` 
 - [x] Windows/MSVC Release `/W4 /WX`.
 - [x] ASan+UBSan.
 - [x] core compile with `-fno-exceptions -fno-rtti`.
-- [x] original M0 tests.
-- [x] all M1 native tests and deterministic fixture verifiers.
+- [x] Emscripten AudioWorklet/WASM browser play-test build and artifact verification.
+- [x] original M0 tests remain PASS.
+- [x] all M1 native tests and deterministic fixture verifiers remain PASS.
 
-The live browser acceptance-host correction changes the candidate head, so a new exact-head CI PASS is required before PR #4 can leave Draft.
+This evidence-record commit is documentation-only and must receive its own exact-head CI PASS before PR #4 can leave Draft. The human play gate remains independently required.
 
 ## Hostile architecture review
 
