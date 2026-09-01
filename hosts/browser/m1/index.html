@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resonant Engine — M1 Play Test</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Resonant Engine</p>
+        <h1>M1 — First Resonator Play Test</h1>
+        <p class="lede">Live C++/WASM resonator. This is the acceptance instrument, not a prerecorded demo.</p>
+      </div>
+      <div class="status-panel">
+        <span id="status">Audio stopped</span>
+        <button id="start" class="primary">Start audio</button>
+        <button id="midi">Enable MIDI</button>
+      </div>
+    </header>
+
+    <section class="play-panel" aria-labelledby="play-heading">
+      <div>
+        <h2 id="play-heading">Play</h2>
+        <p>Computer keyboard: <strong>A W S E D F T G Y H U J K</strong>. Use <strong>Z/X</strong> for octave. MIDI note input is supported.</p>
+      </div>
+      <div class="play-actions">
+        <button id="octave-down" aria-label="Octave down">− Octave</button>
+        <span>Octave <strong id="octave">4</strong></span>
+        <button id="octave-up" aria-label="Octave up">+ Octave</button>
+        <button id="trigger">Strike / trigger</button>
+      </div>
+      <p id="note" class="note-readout">C4 — 261.6 Hz</p>
+    </section>
+
+    <section class="controls" aria-label="Resonator controls">
+      <label>
+        <span>Excitation <output data-value-for="excitation">0.00</output></span>
+        <input id="excitation" data-param="excitation" type="range" min="0" max="1" step="0.01" value="0">
+        <small>0 = pluck/strike only. Raise this for continuously driven air/noise.</small>
+      </label>
+
+      <label>
+        <span>Turbulence <output data-value-for="turbulence">0.65</output></span>
+        <input id="turbulence" data-param="turbulence" type="range" min="0" max="1" step="0.01" value="0.65">
+        <small>Moves the continuous exciter from smoother air toward broadband turbulence.</small>
+      </label>
+
+      <label>
+        <span>Damping <output data-value-for="damping">0.30</output></span>
+        <input id="damping" data-param="damping" type="range" min="0" max="1" step="0.01" value="0.30">
+        <small>Higher values shorten and darken the resonant loop.</small>
+      </label>
+
+      <label>
+        <span>Regeneration <output data-value-for="feedback">0.00</output></span>
+        <input id="feedback" data-param="feedback" type="range" min="0" max="1.5" step="0.01" value="0">
+        <small>Active energy returned into the resonator. High values may become self-sustaining.</small>
+      </label>
+
+      <label>
+        <span>Nonlinearity <output data-value-for="nonlinearity">0.20</output></span>
+        <input id="nonlinearity" data-param="nonlinearity" type="range" min="0" max="1" step="0.01" value="0.20">
+        <small>Soft in-loop saturation, separate from emergency numerical containment.</small>
+      </label>
+
+      <label>
+        <span>Interaction <output data-value-for="interaction">0.00</output></span>
+        <input id="interaction" data-param="interaction" type="range" min="0" max="1" step="0.01" value="0">
+        <small>Lets returned resonator state influence the exciter.</small>
+      </label>
+
+      <label>
+        <span>Master <output data-value-for="master">0.35</output></span>
+        <input id="master" type="range" min="0" max="0.8" step="0.01" value="0.35">
+        <small>Browser output gain only; this is not part of resonant_core.</small>
+      </label>
+    </section>
+
+    <section class="gate">
+      <h2>M1 gate</h2>
+      <p>Judge the instrument by playing it. Does pitch respond naturally? Can damping, continuous excitation and regeneration move through useful states? Does it feel materially more like a resonant instrument than the M0 architecture probe?</p>
+      <button id="reset">Reset resonator state</button>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
