@@ -1,5 +1,6 @@
 #pragma once
 
+#include "resonant/Engine.hpp"
 #include "resonant/Energy.hpp"
 #include "resonant/Event.hpp"
 #include "resonant/Parameter.hpp"
@@ -10,6 +11,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 namespace resonant {
