@@ -117,6 +117,11 @@ try {
   if ((parsed.OBSERVED?.maxima?.activeVoices ?? 0) < 1) {
     throw new Error('A01 evidence never observed an active voice');
   }
+  const decay = parsed.OBSERVED?.marks?.find((mark) => mark.kind === 'decay');
+  const decayRms = Number(decay?.analysis?.rms);
+  if (!Number.isFinite(decayRms) || decayRms < 0.006) {
+    throw new Error(`A01 pluck decay is too quiet at 700 ms: RMS=${decayRms}`);
+  }
   if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
   console.log(`${browserName} Resonant Engine Lab realtime smoke PASS`);
 } finally {
