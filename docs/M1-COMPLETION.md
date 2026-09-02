@@ -1,183 +1,72 @@
 # M1 — First Resonator Completion Gate
 
-Status: **CANDIDATE ENGINEERING PASS — LIVE PLAY GATE REQUIRED**
+Status: **FINAL PASS — MERGED AND FROZEN**
 
-M0 is frozen at merged `main` before this milestone. M1 may extend capability but may not silently reinterpret an M0 invariant.
+M1 added the first concrete musical resonator while preserving the frozen M0 Engine/Host architecture.
 
-## Milestone definition
+## Accepted implementation
 
-- [x] M0 final closure merged and frozen.
-- [x] M1 scope and non-goals defined in `docs/M1-FIRST-RESONATOR.md`.
-- [x] first-resonator selection criteria recorded.
-- [x] tuned-delay/modal/hybrid options compared.
-- [x] tuned-delay reference model selected in ADR-0023.
-- [x] selected model explicitly remains one concrete `Resonator`, not the universal engine algorithm.
+- [x] `ContinuousNoiseExciter` provides deterministic continuous noise, transient and arbitrary external-audio excitation.
+- [x] `TunedDelayResonator` provides fixed-memory fractional-delay resonance with damping, passive loss, active regeneration and bounded in-loop nonlinearity.
+- [x] `FirstResonatorVoice` composes the primitives inside `resonant_core` without Host DSP or Engine API changes.
+- [x] exact silence, passive ringing, continuous excitation, regenerative and aggressive nonlinear finite states are covered.
+- [x] deterministic reset, same/different seed, block-invariant and multi-sample-rate behaviour are tested.
+- [x] no process-time allocation, locks, filesystem, network or unbounded work were introduced into the core path.
+- [x] real resonator output feeds the existing energy/stability observation path.
 
-## Concrete resonator
+## Automated evidence
 
-- [x] fixed-capacity `TunedDelayResonator` implemented in `resonant_core`.
-- [x] 16,384-sample / 65,536-byte fixed delay state.
-- [x] fractional non-integer delay tuning implemented.
-- [x] linear interpolation decision documented.
-- [x] sample-rate-derived tuning bounds implemented.
-- [x] one-pole frequency-dependent damping implemented in-loop.
-- [x] passive loop loss implemented.
-- [x] active regeneration control implemented separately from passive loss.
-- [x] bounded soft nonlinearity implemented in-loop.
-- [x] emergency finite-state containment remains separate from musical nonlinearity.
-- [x] no Host DSP added.
-- [x] no Engine API rewrite required.
+Exact M1 candidate head:
 
-## Excitation and expression
+`910616d0396ab516fa0b3272fe3067c23bffacb6`
 
-- [x] deterministic `ContinuousNoiseExciter` implemented.
-- [x] explicit 64-bit seed ownership.
-- [x] continuous excitation supported without NoteOn.
-- [x] transient Trigger excitation supported.
-- [x] NoteOn can act as a bounded transient but is not acoustically required.
-- [x] arbitrary external-audio excitation supported.
-- [x] returned-resonator interaction path exercised without defining a reed/jet model.
-- [x] reset restores deterministic exciter state.
-- [x] tuning uses sample-rate-aware smoothing.
-- [x] damping, regeneration, nonlinearity, excitation, turbulence and interaction move continuously.
-- [x] `Pitch` and `Pressure` retain the existing sample-accurate event route.
+GitHub Actions run `33567863832` (CI #60): **PASS**.
 
-## Sonic-state engineering evidence
+The exact candidate passed the compiler/platform matrix, Debug/Release builds, warnings-as-errors gates, ASan+UBSan, no-exceptions/no-RTTI portability probe, deterministic regression tests and Emscripten AudioWorklet/WASM browser harness build.
 
-- [x] exact silence path exists.
-- [x] passive transient/ringing path exists.
-- [x] continuous deterministic-noise excitation path exists.
-- [x] regenerative state exists.
-- [x] aggressive nonlinear finite state exists.
-- [x] return-to-silence/passive decay is regression-tested.
-- [x] deterministic offline render scenes cover passive, continuous, regenerative, nonlinear, sweep and silence states.
+Offline WAV renders remain regression evidence only; they were not used as the human acceptance gate.
 
-Offline WAV fixtures are **regression evidence only**. They do not satisfy the human M1 gate.
+## Human acceptance
 
-## Interactive acceptance host
-
-- [x] browser acceptance host added under `hosts/browser/m1/`.
-- [x] host compiles the real C++ `FirstResonatorVoice` to WebAssembly.
-- [x] DSP runs in an AudioWorklet rather than on the browser main thread.
-- [x] JavaScript contains transport/UI/MIDI only; synthesis is not duplicated outside `resonant_core`.
-- [x] computer-keyboard pitch input provided.
-- [x] Web MIDI note input provided.
-- [x] CC1/mod wheel and channel pressure map to continuous excitation for the play test.
-- [x] live excitation, turbulence, damping, regeneration, nonlinearity and interaction controls provided.
-- [x] transient trigger and resonator reset provided.
-- [x] Emscripten 6.0.6 AudioWorklet/WASM harness build PASS on correction head `e7befa4ea72bba8ee507684d203290e8c54d3bce`.
-- [x] playable browser artifact retained by CI as `m1-playable-browser-*`.
-- [ ] **human play-test gate PASS:** live playing demonstrates a musically useful resonator materially beyond `ReferenceFeedbackProbe`.
-
-## Determinism
-
-- [x] same-seed deterministic internal noise design.
-- [x] reset restores the original seed state.
-- [x] same seed/event sequence regression test passes.
-- [x] different seed variation test passes.
-- [x] block-size-invariant deterministic regression test passes.
-- [x] cross-platform policy remains tolerance-conformant rather than bit-identical promise.
-
-## Real-time correctness
-
-- [x] fixed-capacity delay storage.
-- [x] no allocation required by the model's sample path.
-- [x] dedicated allocation-counting test around `Engine::process()` passes.
-- [x] no locks introduced.
-- [x] no I/O/filesystem/network dependency introduced into core.
-- [x] no unbounded graph/queue work introduced.
-- [x] existing M0 failure handling remains authoritative.
-
-## Stability and observability
-
-- [x] real resonator output feeds `EnergyMonitor`.
-- [x] excitation/resonator/output/feedback observations wired.
-- [x] passive-vs-regenerative late-energy test passes.
-- [x] aggressive high-feedback nonlinear 100,000-sample long-run test passes.
-- [x] randomized 128,000-sample parameter/event stress passes.
-- [x] model rejects/contains numerical non-finite state.
-- [x] musically aggressive finite operation remains legal.
-- [x] coarse generic `EnergyState` classification limitation documented rather than overclaimed.
-
-## Automated test coverage
-
-- [x] concept compatibility test.
-- [x] multi-sample-rate prepare test.
-- [x] silence test.
-- [x] transient ringing test.
-- [x] external-audio excitation test.
-- [x] continuous-without-NoteOn test.
-- [x] fractional-delay mapping test at 48/96 kHz.
-- [x] deterministic same/different seed tests.
-- [x] deterministic reset test.
-- [x] passive/regenerative comparison.
-- [x] aggressive finite 100,000-sample stress.
-- [x] 44.1/48/96/192 kHz matrix.
-- [x] 1/7/32/63/128-frame block matrix.
-- [x] randomized 128,000-sample parameter/event stress.
-- [x] zero-allocation real-time process probe.
-- [x] deterministic block-invariant regression signature.
-- [x] offline render regression verifier.
-- [x] original M0 tests remain in the suite.
-
-## Portability/build evidence
-
-GitHub Actions run `33567597513` on correction head `e7befa4ea72bba8ee507684d203290e8c54d3bce` passed all nine jobs:
-
-- [x] Ubuntu/GCC Debug.
-- [x] Ubuntu/GCC Release + warnings-as-errors.
-- [x] macOS/Clang Debug.
-- [x] macOS/Clang Release + warnings-as-errors.
-- [x] Windows/MSVC Debug.
-- [x] Windows/MSVC Release `/W4 /WX`.
-- [x] ASan+UBSan.
-- [x] core compile with `-fno-exceptions -fno-rtti`.
-- [x] Emscripten AudioWorklet/WASM browser play-test build and artifact verification.
-- [x] original M0 tests remain PASS.
-- [x] all M1 native tests and deterministic fixture verifiers remain PASS.
-
-This evidence-record commit is documentation-only and must receive its own exact-head CI PASS before PR #4 can leave Draft. The human play gate remains independently required.
+- [x] live human interaction/listening PASS.
+- [x] the accepted M2 Resonant Engine Lab exercised the same M1 synthesis implementation.
+- [x] `core/include/resonant/FirstResonator.hpp` has blob SHA `21eb70b37cc1ba3c699c84e6b5eaa80dfae5ff91` at both the M1 exact head and the accepted M2 candidate used for A01–A09 testing.
+- [x] A01–A09 human acceptance passed after an A01 Lab audibility-calibration defect was corrected; no M1 core change was required.
+- [x] no unresolved M1 blocker remained after live testing.
 
 ## Hostile architecture review
 
-The full attack record is `docs/M1-HOSTILE-ARCHITECTURE-REVIEW.md`.
+`docs/M1-HOSTILE-ARCHITECTURE-REVIEW.md`: **PASS**.
 
-- [x] Host-specific synthesis DSP attack fails.
-- [x] Host-block feedback latency attack fails.
-- [x] mandatory NoteOn/oscillator attack fails.
-- [x] integer-only tuning attack fails.
-- [x] sample-rate-specific tuning attack fails.
-- [x] process-time allocation attack fails.
-- [x] automatic-failure-for-musical-instability attack fails.
-- [x] Host-randomness dependency attack fails.
-- [x] Breath-Pipe/Steampipe-specific generic-API leakage attack fails.
-- [x] tuned-delay-as-universal-Resonator attack fails.
-- [x] external-excitation compatibility remains intact.
-- [x] future coupling compatibility remains intact within M1 scope.
-- [x] final pitch compensation remains model-local.
-- [x] no undocumented M0 invariant violation found.
+The review confirmed that M1 did not introduce Host-specific synthesis DSP, host-block feedback latency, mandatory NoteOn semantics, integer-only tuning, sample-rate-specific tuning, process-time allocation, automatic failure for musically aggressive finite states, Host randomness dependence, Breath Pipe/Steampipe-specific generic API leakage, or a claim that tuned delay is the universal Resonant Engine model.
 
-**Hostile review result: PASS.**
+Two recorded non-blocking limitations remain valid:
 
-Two real non-blocking weaknesses remain recorded:
+1. generic M0 `EnergyState` labels are operational heuristics rather than physical or psychoacoustic classifiers;
+2. M1 `tuning_hz` is continuously movable but not yet fully phase-compensated pitch truth across all damping/interpolation settings.
 
-1. generic M0 `EnergyState` labels are operational heuristics, not physical/psychoacoustic classifiers;
-2. M1 `tuning_hz` is a continuously movable target but not yet fully phase-compensated pitch truth across damping/interpolation settings.
+## Merge and post-merge verification
 
-## Protected final gate
+PR #4 was merged at the exact authorised head:
 
-M1 is not FINAL PASS until all are true:
+`910616d0396ab516fa0b3272fe3067c23bffacb6`
 
-- [ ] current exact head receives full CI PASS, including browser/WASM harness build;
-- [x] hostile architecture review PASS;
-- [x] deterministic regression evidence PASS;
-- [ ] interactive human play-test PASS;
-- [ ] no unresolved M1 blocker after live play testing;
-- [ ] PR moved from Draft to Ready only after all non-protected evidence is current;
-- [ ] protected merge authorised and completed;
-- [ ] post-merge `main` verification green;
-- [ ] M1 declared complete and frozen in a post-merge closure record.
+Merge commit on `main`:
 
-## Current decision
+`54ebc45e4a0b2c96a7733ce99f49b3855acad9a7`
 
-**ENGINEERING CANDIDATE PASS, HUMAN GATE OPEN.** M1 is not accepted by listening to WAV files. It is accepted by playing the live C++ resonator through the browser host. The protected merge remains blocked until that interactive gate passes.
+Post-merge verification established:
+
+- [x] `main` points at the M1 merge commit.
+- [x] the merge commit tree SHA is `fc944453ab026448b1e633ccb1c658d7611482c1`.
+- [x] the exact green M1 head has the same tree SHA `fc944453ab026448b1e633ccb1c658d7611482c1`.
+- [x] therefore CI #60 validates the exact repository tree merged to `main`; the merge changed history metadata, not tree contents.
+- [x] protected-authority merge gate was explicitly satisfied.
+
+## Frozen boundary
+
+M0 invariants and the Host/core boundary remain authoritative. The selected tuned-delay resonator is one concrete Resonant Engine model; it is not Breath Pipe, not a Steampipe clone and not a requirement that future models use tuned delays.
+
+## Final decision
+
+**M1 FINAL PASS. M1 is complete and frozen.**
