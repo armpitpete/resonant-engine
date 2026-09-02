@@ -1,9 +1,15 @@
 import createResonantLabModule from './resonant-lab.js';
 
+// Instantiate WASM while the AudioWorklet module itself is loading. The browser
+// waits for addModule() to resolve before an AudioWorkletNode can be created, so
+// the processor constructor remains synchronous and realtime rendering can begin
+// immediately. Do not start asynchronous WASM setup from the processor constructor.
+const resonantLabModule = await createResonantLabModule({ noInitialRun: true });
+
 class ResonantLabProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.module = null;
+    this.module = resonantLabModule;
     this.ready = false;
     this.pending = [];
     this.telemetryCountdown = 0;
@@ -20,30 +26,27 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
       this.applyMessage(event.data);
     };
 
-    createResonantLabModule({ noInitialRun: true })
-      .then((module) => {
-        this.module = module;
-        if (!module._re_prepare(sampleRate)) {
-          throw new Error('Resonant Engine Lab failed to prepare');
-        }
-        this.ready = true;
-        const parameters = [];
-        const count = module._re_parameter_count();
-        for (let index = 0; index < count; index += 1) {
-          parameters.push({
-            id: module._re_parameter_id(index),
-            min: module._re_parameter_min(index),
-            max: module._re_parameter_max(index),
-            defaultValue: module._re_parameter_default(index),
-          });
-        }
-        for (const message of this.pending) this.applyMessage(message);
-        this.pending.length = 0;
-        this.port.postMessage({ type: 'ready', sampleRate, parameters });
-      })
-      .catch((error) => {
-        this.port.postMessage({ type: 'error', message: String(error) });
-      });
+    try {
+      if (!this.module._re_prepare(sampleRate)) {
+        throw new Error('Resonant Engine Lab failed to prepare');
+      }
+      this.ready = true;
+      const parameters = [];
+      const count = this.module._re_parameter_count();
+      for (let index = 0; index < count; index += 1) {
+        parameters.push({
+          id: this.module._re_parameter_id(index),
+          min: this.module._re_parameter_min(index),
+          max: this.module._re_parameter_max(index),
+          defaultValue: this.module._re_parameter_default(index),
+        });
+      }
+      for (const message of this.pending) this.applyMessage(message);
+      this.pending.length = 0;
+      this.port.postMessage({ type: 'ready', sampleRate, parameters });
+    } catch (error) {
+      this.port.postMessage({ type: 'error', message: String(error) });
+    }
   }
 
   newDiagnostics() {
@@ -244,37 +247,42 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    this.runScenarioActions();
-    const ok = this.module._re_process(frames);
-    const ptr = this.module._re_output_ptr() >>> 2;
-    const mono = this.module.HEAPF32.subarray(ptr, ptr + frames);
-    this.measureOutput(mono);
-    for (const channel of output) channel.set(mono);
+    try {
+      this.runScenarioActions();
+      const ok = this.module._re_process(frames);
+      const ptr = this.module._re_output_ptr() >>> 2;
+      const mono = this.module.HEAPF32.subarray(ptr, ptr + frames);
+      this.measureOutput(mono);
+      for (const channel of output) channel.set(mono);
 
-    if (!ok && !this.hardFailureReported) {
-      this.hardFailureReported = true;
-      this.port.postMessage({ type: 'hardFailure', reason: 'core-protected-state', telemetry: this.telemetry() });
-    }
-
-    if (this.scenario) {
-      this.scenario.frame += frames;
-      if (this.scenario.frame >= this.scenario.durationFrames) {
-        const completed = this.scenario.id;
-        const finalTelemetry = this.telemetry();
-        this.scenario = null;
-        this.module._re_panic();
-        const recovery = this.telemetry();
-        finalTelemetry.recoveryActiveVoices = recovery.activeVoices;
-        finalTelemetry.recoveryHeldVoices = recovery.heldVoices;
-        finalTelemetry.recoveryProtectedState = recovery.protectedState;
-        this.port.postMessage({ type: 'scenarioComplete', id: completed, telemetry: finalTelemetry });
+      if (!ok && !this.hardFailureReported) {
+        this.hardFailureReported = true;
+        this.port.postMessage({ type: 'hardFailure', reason: 'core-protected-state', telemetry: this.telemetry() });
       }
-    }
 
-    this.telemetryCountdown -= 1;
-    if (this.telemetryCountdown <= 0) {
-      this.telemetryCountdown = 12;
-      this.port.postMessage(this.telemetry());
+      if (this.scenario) {
+        this.scenario.frame += frames;
+        if (this.scenario.frame >= this.scenario.durationFrames) {
+          const completed = this.scenario.id;
+          const finalTelemetry = this.telemetry();
+          this.scenario = null;
+          this.module._re_panic();
+          const recovery = this.telemetry();
+          finalTelemetry.recoveryActiveVoices = recovery.activeVoices;
+          finalTelemetry.recoveryHeldVoices = recovery.heldVoices;
+          finalTelemetry.recoveryProtectedState = recovery.protectedState;
+          this.port.postMessage({ type: 'scenarioComplete', id: completed, telemetry: finalTelemetry });
+        }
+      }
+
+      this.telemetryCountdown -= 1;
+      if (this.telemetryCountdown <= 0) {
+        this.telemetryCountdown = 12;
+        this.port.postMessage(this.telemetry());
+      }
+    } catch (error) {
+      for (const channel of output) channel.fill(0);
+      this.port.postMessage({ type: 'error', message: `AudioWorklet process failed: ${String(error)}` });
     }
     return true;
   }
