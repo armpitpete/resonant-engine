@@ -33,6 +33,7 @@ jobs:
       - name: Build Resonant Engine Lab and Node parity module
         env:
           RESONANT_LAB_BUILD_NODE_PARITY: "1"
+          RESONANT_LAB_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: bash hosts/browser/lab/build.sh
       - name: Verify Lab artifact and contracts
         run: |
@@ -49,6 +50,7 @@ jobs:
           node --check hosts/browser/lab/parity.mjs
           python3 -m json.tool lab/contracts/presets.json >/dev/null
           python3 -m json.tool lab/contracts/acceptance-tests.json >/dev/null
+          grep -F "commit: '${{ github.event.pull_request.head.sha || github.sha }}'" build/resonant-lab/build-info.js
       - name: Build native parity signature
         run: |
           cmake -S . -B build-lab-parity -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=OFF -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=Release
