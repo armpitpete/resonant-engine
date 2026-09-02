@@ -1,6 +1,6 @@
 # M2 — Resonant Engine Lab Completion
 
-Status: **FINAL CANDIDATE — HUMAN ACCEPTANCE PASS; FRESH EXACT-HEAD CI / MERGE GATE REMAIN**
+Status: **FINAL PASS — MERGED AND FROZEN**
 
 ## Scope
 
@@ -108,7 +108,13 @@ Playwright WebKit is not represented as manual Safari evidence; no Safari-specif
 
 ### M2.7 CI evidence
 
-Earlier implementation head `b9fdd3fe964756b18ad9899288714700d8f963a0` passed CI #90 (`33687382606`), including:
+Final exact M2 candidate head:
+
+`c3db8578ae1afabe23140e4449be6b6f73667f61`
+
+GitHub Actions CI #96 (`33689035510`): **PASS**.
+
+The exact candidate passed:
 
 - [x] Ubuntu GCC Debug/Release.
 - [x] macOS Clang Debug/Release.
@@ -116,13 +122,12 @@ Earlier implementation head `b9fdd3fe964756b18ad9899288714700d8f963a0` passed CI
 - [x] ASan+UBSan.
 - [x] no-exceptions/no-RTTI portability probe.
 - [x] WASM Lab build.
+- [x] exact PR-head evidence provenance assertion.
 - [x] native/WASM deterministic signature parity.
 - [x] Chromium realtime browser smoke.
 - [x] Firefox realtime browser smoke.
 - [x] WebKit realtime browser smoke.
 - [x] Microsoft Edge realtime browser smoke.
-
-Final documentation, M1 closure reconciliation and evidence-provenance hardening deliberately changed the M2 head, so one final exact-head CI PASS is required before PR #5 can leave Draft.
 
 ### M2.8 Hostile review
 
@@ -146,19 +151,44 @@ Both are resolved. No remaining blocking architecture, realtime, evidence, brows
 - [x] M1 completion status reconciled to merged/frozen state.
 - [x] README reconciled to M1 complete and M2 human PASS state.
 
+## Merge and post-merge verification
+
+PR #5 was merged at the exact authorised head:
+
+`c3db8578ae1afabe23140e4449be6b6f73667f61`
+
+Merge commit on `main`:
+
+`460dcebe60babf360ee5b4c72ab8bb97d4a21dd8`
+
+Merged tree SHA:
+
+`04700c2a760d42831f3eadb6588571514f1bf17d`
+
+Post-merge verification established:
+
+- [x] `main` points at merge commit `460dcebe60babf360ee5b4c72ab8bb97d4a21dd8`.
+- [x] comparison from the authorised head to the merge commit contains no changed files; merge history changed, tree contents did not.
+- [x] GitHub Actions CI #97 (`33689608222`) ran on the exact merged `main` commit and completed **PASS**.
+- [x] post-merge native/platform matrix passed.
+- [x] post-merge ASan+UBSan and portability probe passed.
+- [x] post-merge WASM/native parity passed.
+- [x] post-merge Chromium, Firefox, WebKit and Microsoft Edge realtime browser smoke gates passed.
+- [x] no blocking defect remains.
+
 ## Final gate
 
-M2 cannot be marked FINAL PASS until all of the following are true:
+M2 final requirements are all satisfied:
 
-1. [ ] fresh exact-head CI PASS after final hostile-review repairs;
+1. [x] exact-head CI PASS after final hostile-review repairs;
 2. [x] final hostile diff review against `main` completed with blockers repaired;
 3. [x] human A01-A09 acceptance PASS;
-4. [x] no currently known blocking defect remains;
-5. [ ] PR #5 is moved from Draft to Ready after exact-head CI is green;
-6. [ ] protected exact-head merge is separately authorised and completed;
-7. [ ] post-merge `main` verification records the merged tree/commit;
-8. [ ] M2 is declared FINAL PASS and frozen.
+4. [x] no blocking defect remains;
+5. [x] PR #5 moved from Draft to Ready after exact-head CI was green;
+6. [x] protected exact-head merge was explicitly authorised and completed;
+7. [x] post-merge `main` verification records the merged tree/commit and CI PASS;
+8. [x] M2 is declared FINAL PASS and frozen.
 
-## Current decision
+## Final decision
 
-**M2 FINAL CANDIDATE. Human acceptance and hostile review are complete; final exact-head CI and protected merge closure remain.**
+**M2 FINAL PASS. M2 is complete and frozen.**

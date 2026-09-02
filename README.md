@@ -34,7 +34,7 @@ The M1 reference model is deliberately generic and replaceable. It is **not Brea
 
 ## M2 — Resonant Engine Lab
 
-**Status: FINAL CANDIDATE — human acceptance PASS; final exact-head CI/hostile review/merge gate remain.**
+**Status: COMPLETE AND FROZEN.**
 
 M2 makes the headless engine observable, measurable and reproducibly testable by humans.
 
@@ -58,7 +58,9 @@ The Lab provides:
 - native/WASM deterministic signature comparison;
 - automated Chromium, Firefox, WebKit and Microsoft Edge browser smoke gates.
 
-The realtime AudioWorklet path has been repaired after a browser-scope timing crash was isolated, and A01 Pluck now carries a measurable decay-audibility regression gate. Human A01–A09 acceptance is **PASS**.
+The realtime AudioWorklet path was repaired after a browser-scope timing crash was isolated, and A01 Pluck carries a measurable decay-audibility regression gate. Human A01–A09 acceptance is **PASS**.
+
+M2 exact candidate `c3db8578ae1afabe23140e4449be6b6f73667f61` passed CI #96, hostile review and the human suite, then PR #5 merged to `main` as `460dcebe60babf360ee5b4c72ab8bb97d4a21dd8`. Post-merge CI #97 passed the native/platform matrix, sanitizers, portability probe, native/WASM parity, and Chromium/Firefox/WebKit/Microsoft Edge realtime browser smoke gates on the exact merged commit.
 
 The Lab deliberately does **not** provide a performance piano, computer-keyboard instrument, Web MIDI performance workflow, patch designer or browser-specific synthesis algorithm.
 
