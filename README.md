@@ -12,32 +12,13 @@ M0 establishes a portable real-time DSP architecture specifically capable of sup
 
 M0 is architecturally centered on one C++20 `resonant_core`. Browser/WASM, VST3/JUCE, embedded hardware and other synths are thin Hosts around that shared core; host-specific DSP duplication is prohibited.
 
-## M0 result
-
-The merged `main` branch contains the full M0 contract/runtime foundation:
-
-- normative product/scope, sonic, terminology and core-boundary contracts;
-- hard real-time processing rules;
-- float32 non-interleaved block transport with sample-level model feedback;
-- sample-accurate deterministic events;
-- native/normalized parameters with sample-rate-aware smoothing;
-- generic exciter/resonator compatibility contracts;
-- feedback, energy/stability and lifecycle contracts;
-- deterministic PCG32 randomness/voice seed derivation;
-- Debug/Release, MSVC/GCC/Clang and sanitizer CI;
-- deterministic offline WAV render host;
-- unit/property/regression testing foundation;
-- WASM/VST3/embedded portability proof for M0 scope;
-- research/reference record and accepted ADR register;
-- final hostile Breath Pipe architecture review and M0 completion gate.
-
 The `ReferenceFeedbackProbe` remains an **M0 architectural fixture**, not the Breath Pipe voice and not the preferred musical model.
 
 M0 is frozen as the baseline for later milestones. Later work may extend it through explicit architecture decisions, but must not silently reinterpret the M0 invariants or Host/core boundary.
 
 ## M1 — First Resonator
 
-**Status: CANDIDATE — engineering gates pass; human live play-test gate remains on the M1 branch.**
+**Status: COMPLETE AND FROZEN.**
 
 M1 adds the first concrete musical resonator without changing the frozen Engine/Host architecture:
 
@@ -45,15 +26,15 @@ M1 adds the first concrete musical resonator without changing the frozen Engine/
 - `TunedDelayResonator` — fixed-memory fractional-delay resonance with damping, passive loss, active regeneration and bounded in-loop nonlinearity;
 - `FirstResonatorVoice` — sample-accurate, smoothed composition of those primitives with energy/stability observation;
 - deterministic offline render scenes used only for regression evidence;
-- a temporary browser AudioWorklet/WASM acceptance harness that runs the same C++ `FirstResonatorVoice` live.
+- a browser AudioWorklet/WASM acceptance harness that runs the same C++ `FirstResonatorVoice` live.
+
+M1 exact head `910616d0396ab516fa0b3272fe3067c23bffacb6` passed CI #60 and hostile review, then passed the human live gate through the later M2 Lab using the identical `FirstResonatorVoice` core. PR #4 merged to `main` as `54ebc45e4a0b2c96a7733ce99f49b3855acad9a7`; the merged tree is identical to the green exact-head tree.
 
 The M1 reference model is deliberately generic and replaceable. It is **not Breath Pipe**, not a Steampipe clone and not a rule that future Resonant Engine models must use tuned delays.
 
-The temporary M1 keyboard/MIDI surface exists only to judge the first resonator. It is not a Resonant Engine browser product and is not the UI direction for M2.
-
 ## M2 — Resonant Engine Lab
 
-**Status: ENGINEERING CANDIDATE — exact-head CI and human A01–A09 evidence remain final gates.**
+**Status: FINAL CANDIDATE — human acceptance PASS; final exact-head CI/hostile review/merge gate remain.**
 
 M2 makes the headless engine observable, measurable and reproducibly testable by humans.
 
@@ -76,6 +57,8 @@ The Lab provides:
 - JSON evidence, optional WAV capture and plot PNG export;
 - native/WASM deterministic signature comparison;
 - automated Chromium, Firefox, WebKit and Microsoft Edge browser smoke gates.
+
+The realtime AudioWorklet path has been repaired after a browser-scope timing crash was isolated, and A01 Pluck now carries a measurable decay-audibility regression gate. Human A01–A09 acceptance is **PASS**.
 
 The Lab deliberately does **not** provide a performance piano, computer-keyboard instrument, Web MIDI performance workflow, patch designer or browser-specific synthesis algorithm.
 
@@ -132,7 +115,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Offline render tools are deterministic regression evidence. They are not substitutes for the M1 or M2 human listening gates.
+Offline render tools are deterministic regression evidence. They are not substitutes for human listening gates.
 
 ## Documentation
 
