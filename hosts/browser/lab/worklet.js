@@ -242,6 +242,7 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
 
     if (!this.quantumReported) {
       this.quantumReported = true;
+      console.info(`Resonant Engine Lab first audio quantum: ${frames} frames, ready=${this.ready}`);
       this.port.postMessage({ type: 'quantumStarted', frames, ready: this.ready });
     }
 
