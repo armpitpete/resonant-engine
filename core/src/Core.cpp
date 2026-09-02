@@ -2,6 +2,7 @@
 #include "resonant/Energy.hpp"
 #include "resonant/Event.hpp"
 #include "resonant/Feedback.hpp"
+#include "resonant/FirstResonator.hpp"
 #include "resonant/Interfaces.hpp"
 #include "resonant/Parameter.hpp"
 #include "resonant/Random.hpp"
@@ -10,4 +11,5 @@
 
 namespace resonant {
 static_assert(sizeof(Sample) == 4, "M0 requires float32 audio samples");
+static_assert(EngineModel<FirstResonatorVoice>);
 } // namespace resonant

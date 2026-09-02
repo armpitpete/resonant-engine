@@ -45,6 +45,11 @@ if(RESONANT_ENGINE_BUILD_RENDER)
     target_link_libraries(resonant_render PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_render)
     resonant_apply_sanitizers(resonant_render)
+
+    add_executable(resonant_m1_render tools/m1_render/main.cpp)
+    target_link_libraries(resonant_m1_render PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_m1_render)
+    resonant_apply_sanitizers(resonant_m1_render)
 endif()
 
 if(RESONANT_ENGINE_BUILD_TESTS)
@@ -69,17 +74,41 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_stability_tests)
     add_test(NAME resonant_stability_tests COMMAND resonant_stability_tests)
 
+    add_executable(resonant_first_resonator_tests tests/unit/test_first_resonator.cpp)
+    target_link_libraries(resonant_first_resonator_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_first_resonator_tests)
+    resonant_apply_sanitizers(resonant_first_resonator_tests)
+    add_test(NAME resonant_first_resonator_tests COMMAND resonant_first_resonator_tests)
+
+    add_executable(resonant_first_resonator_allocation_tests tests/unit/test_first_resonator_allocation.cpp)
+    target_link_libraries(resonant_first_resonator_allocation_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_first_resonator_allocation_tests)
+    resonant_apply_sanitizers(resonant_first_resonator_allocation_tests)
+    add_test(NAME resonant_first_resonator_allocation_tests COMMAND resonant_first_resonator_allocation_tests)
+
     add_executable(resonant_property_tests tests/property/property_contract.cpp)
     target_link_libraries(resonant_property_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_property_tests)
     resonant_apply_sanitizers(resonant_property_tests)
     add_test(NAME resonant_property_tests COMMAND resonant_property_tests)
 
+    add_executable(resonant_first_resonator_property_tests tests/property/first_resonator_property.cpp)
+    target_link_libraries(resonant_first_resonator_property_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_first_resonator_property_tests)
+    resonant_apply_sanitizers(resonant_first_resonator_property_tests)
+    add_test(NAME resonant_first_resonator_property_tests COMMAND resonant_first_resonator_property_tests)
+
     add_executable(resonant_regression_tests tests/regression/render_regression.cpp)
     target_link_libraries(resonant_regression_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_regression_tests)
     resonant_apply_sanitizers(resonant_regression_tests)
     add_test(NAME resonant_regression_tests COMMAND resonant_regression_tests)
+
+    add_executable(resonant_first_resonator_regression_tests tests/regression/first_resonator_regression.cpp)
+    target_link_libraries(resonant_first_resonator_regression_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_first_resonator_regression_tests)
+    resonant_apply_sanitizers(resonant_first_resonator_regression_tests)
+    add_test(NAME resonant_first_resonator_regression_tests COMMAND resonant_first_resonator_regression_tests)
 
     add_test(
         NAME resonant_core_dependency_boundary
@@ -112,6 +141,20 @@ if(RESONANT_ENGINE_BUILD_TESTS)
                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_wav.py ${M0_SILENT_WAV} silent
             )
             set_tests_properties(resonant_render_silent_wav_structure PROPERTIES DEPENDS resonant_render_silent_smoke)
+
+            foreach(M1_SCENE IN ITEMS passive-pluck continuous feedback nonlinear sweep silent)
+                string(REPLACE "-" "_" M1_SCENE_ID "${M1_SCENE}")
+                set(M1_RENDER_WAV "${CMAKE_CURRENT_BINARY_DIR}/m1-${M1_SCENE}.wav")
+                add_test(
+                    NAME resonant_m1_render_${M1_SCENE_ID}
+                    COMMAND resonant_m1_render --scene ${M1_SCENE} --sample-rate 48000 --block-size 64 --duration 1.0 --seed 777 --output ${M1_RENDER_WAV}
+                )
+                add_test(
+                    NAME resonant_m1_verify_${M1_SCENE_ID}
+                    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/regression/verify_m1_wav.py ${M1_RENDER_WAV} ${M1_SCENE}
+                )
+                set_tests_properties(resonant_m1_verify_${M1_SCENE_ID} PROPERTIES DEPENDS resonant_m1_render_${M1_SCENE_ID})
+            endforeach()
         endif()
     endif()
 endif()
