@@ -1,18 +1,13 @@
 import createResonantLabModule from './resonant-lab.js';
 
-// Instantiate WASM while the AudioWorklet module itself is loading. The browser
-// waits for addModule() to resolve before an AudioWorkletNode can be created, so
-// the processor constructor remains synchronous and realtime rendering can begin
-// immediately. Do not start asynchronous WASM setup from the processor constructor.
-const resonantLabModule = await createResonantLabModule({ noInitialRun: true });
-
 class ResonantLabProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.module = resonantLabModule;
+    this.module = null;
     this.ready = false;
     this.pending = [];
     this.telemetryCountdown = 0;
+    this.quantumReported = false;
     this.hardFailureReported = false;
     this.scenario = null;
     this.blockDiagnostics = this.newDiagnostics();
@@ -26,27 +21,30 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
       this.applyMessage(event.data);
     };
 
-    try {
-      if (!this.module._re_prepare(sampleRate)) {
-        throw new Error('Resonant Engine Lab failed to prepare');
-      }
-      this.ready = true;
-      const parameters = [];
-      const count = this.module._re_parameter_count();
-      for (let index = 0; index < count; index += 1) {
-        parameters.push({
-          id: this.module._re_parameter_id(index),
-          min: this.module._re_parameter_min(index),
-          max: this.module._re_parameter_max(index),
-          defaultValue: this.module._re_parameter_default(index),
-        });
-      }
-      for (const message of this.pending) this.applyMessage(message);
-      this.pending.length = 0;
-      this.port.postMessage({ type: 'ready', sampleRate, parameters });
-    } catch (error) {
-      this.port.postMessage({ type: 'error', message: String(error) });
-    }
+    createResonantLabModule({ noInitialRun: true })
+      .then((module) => {
+        this.module = module;
+        if (!module._re_prepare(sampleRate)) {
+          throw new Error('Resonant Engine Lab failed to prepare');
+        }
+        this.ready = true;
+        const parameters = [];
+        const count = module._re_parameter_count();
+        for (let index = 0; index < count; index += 1) {
+          parameters.push({
+            id: module._re_parameter_id(index),
+            min: module._re_parameter_min(index),
+            max: module._re_parameter_max(index),
+            defaultValue: module._re_parameter_default(index),
+          });
+        }
+        for (const message of this.pending) this.applyMessage(message);
+        this.pending.length = 0;
+        this.port.postMessage({ type: 'ready', sampleRate, parameters });
+      })
+      .catch((error) => {
+        this.port.postMessage({ type: 'error', message: String(error) });
+      });
   }
 
   newDiagnostics() {
@@ -241,6 +239,11 @@ class ResonantLabProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     if (!output || output.length === 0) return true;
     const frames = output[0].length;
+
+    if (!this.quantumReported) {
+      this.quantumReported = true;
+      this.port.postMessage({ type: 'quantumStarted', frames, ready: this.ready });
+    }
 
     if (!this.ready) {
       for (const channel of output) channel.fill(0);
