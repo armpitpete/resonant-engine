@@ -105,20 +105,6 @@
       <pre id="evidence-preview">No evidence captured yet.</pre>
     </section>
   </main>
-  <script>
-    (() => {
-      const NativeAudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!NativeAudioContext) return;
-      class ResonantAudioContext extends NativeAudioContext {
-        constructor(...args) {
-          super(...args);
-          void this.resume().catch(() => {});
-        }
-      }
-      window.AudioContext = ResonantAudioContext;
-    })();
-  </script>
-  <script src="./worklet-keepalive.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
