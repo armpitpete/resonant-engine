@@ -86,10 +86,16 @@ Later milestone decisions extend the frozen M0 set. They do not silently rewrite
 
 **File:** `ADR-0023-M1-FIRST-RESONATOR.md`  
 **Decision:** M1 uses a deterministic continuously excited noise source, fixed-capacity tuned-delay resonator, active regeneration and bounded nonlinearity as the first concrete musical model while preserving the generic Engine/Host contracts.  
-**Scope:** M1 candidate; the selected model is not Breath Pipe and does not make tuned delay universal.
+**Scope:** accepted for M1; the selected model is not Breath Pipe and does not make tuned delay universal.
 
 ## ADR-0024 — M2 Resonant Engine Lab
 
 **File:** `ADR-0024-M2-RESONANT-ENGINE-LAB.md`  
 **Decision:** the browser-facing M2 surface is a diagnostic/human-acceptance Lab around shared C++ DSP, not a browser synth. Test orchestration, measurement and evidence may live outside `resonant_core`; browser-specific synthesis may not.  
-**Scope:** accepted for the M2 candidate and subject to the M2 final evidence/merge gates.
+**Scope:** accepted for M2; M2 is complete and frozen.
+
+## ADR-0025 — M3 Breath Pipe Reference Voice
+
+**File:** `ADR-0025-M3-BREATH-PIPE-REFERENCE-VOICE.md`  
+**Decision:** M3 proves the protected Breath Pipe continuum with one continuously interacting reference model, begins with an evidence-backed topology-selection gate, separates musical macro controls from DSP coefficients, keeps MIDI/Host semantics outside the model, requires explicit generic-primitive promotion, and proves external excitation through the real interaction path.  
+**Scope:** proposed for M3 contract definition; becomes accepted when the contract PR passes review/CI and merges.
