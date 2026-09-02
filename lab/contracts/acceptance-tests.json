@@ -6,8 +6,9 @@
       "name": "Pluck",
       "preset": "pluck",
       "duration_ms": 2200,
-      "expected": "Clean transient excitation, resonant decay, finite output, no click or protected state.",
+      "expected": "Clean audible transient excitation with resonant decay, finite output, no click or protected state.",
       "program": [
+        {"op": "set_parameter", "at_ms": 0, "id": 105, "value": 0.8},
         {"op": "note_on", "at_ms": 0, "note": 60, "velocity": 0.85},
         {"op": "note_off", "at_ms": 80, "note": 60},
         {"op": "mark", "at_ms": 700, "label": "decay"},
