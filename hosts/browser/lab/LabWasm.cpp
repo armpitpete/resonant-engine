@@ -6,6 +6,10 @@
 
 #include <emscripten/emscripten.h>
 
+EM_JS(double, re_now_ms, (), {
+    return Date.now();
+});
+
 namespace {
 
 constexpr std::uint32_t kRenderQuantum = resonant_lab::LabEngine::kMaximumBlockSize;
@@ -64,13 +68,13 @@ EMSCRIPTEN_KEEPALIVE int re_process(std::uint32_t frames) noexcept {
 
     // AudioWorkletGlobalScope does not expose `performance` consistently across
     // browsers. emscripten_get_now() is implemented with performance.now() and
-    // therefore crashes the realtime worklet on those hosts. Date.now() is
-    // available in the worklet global scope, so use Emscripten's Date-backed
-    // clock here. Millisecond resolution is sufficient for the Lab's smoothed
-    // diagnostic CPU estimate; it is not used by synthesis or scheduling.
-    const auto start = emscripten_date_now();
+    // crashes the realtime worklet on affected hosts. Date.now() is available in
+    // AudioWorkletGlobalScope and Node, so use the explicit bridge above. The
+    // millisecond resolution is sufficient for this smoothed diagnostic CPU
+    // estimate; synthesis and scheduling do not depend on this clock.
+    const auto start = re_now_ms();
     const auto ok = g_lab.process(std::span<resonant::Sample>{g_output.data(), frames});
-    const auto elapsed_ms = emscripten_date_now() - start;
+    const auto elapsed_ms = re_now_ms() - start;
     const auto budget_ms = 1'000.0 * static_cast<double>(frames) / g_sample_rate;
     g_cpu_load = budget_ms > 0.0 ? 100.0 * elapsed_ms / budget_ms : 0.0;
     g_cpu_load_smoothed = g_cpu_load_smoothed == 0.0
