@@ -61,9 +61,16 @@ EMSCRIPTEN_KEEPALIVE int re_process(std::uint32_t frames) noexcept {
     if (frames == 0U || frames > kRenderQuantum) {
         return 0;
     }
-    const auto start = emscripten_get_now();
+
+    // AudioWorkletGlobalScope does not expose `performance` consistently across
+    // browsers. emscripten_get_now() is implemented with performance.now() and
+    // therefore crashes the realtime worklet on those hosts. Date.now() is
+    // available in the worklet global scope, so use Emscripten's Date-backed
+    // clock here. Millisecond resolution is sufficient for the Lab's smoothed
+    // diagnostic CPU estimate; it is not used by synthesis or scheduling.
+    const auto start = emscripten_date_now();
     const auto ok = g_lab.process(std::span<resonant::Sample>{g_output.data(), frames});
-    const auto elapsed_ms = emscripten_get_now() - start;
+    const auto elapsed_ms = emscripten_date_now() - start;
     const auto budget_ms = 1'000.0 * static_cast<double>(frames) / g_sample_rate;
     g_cpu_load = budget_ms > 0.0 ? 100.0 * elapsed_ms / budget_ms : 0.0;
     g_cpu_load_smoothed = g_cpu_load_smoothed == 0.0
