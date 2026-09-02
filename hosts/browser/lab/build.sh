@@ -33,7 +33,7 @@ if [[ "${RESONANT_LAB_BUILD_NODE_PARITY:-0}" == "1" ]]; then
   em++ "${COMMON[@]}" -sENVIRONMENT=node -o "$OUT/resonant-lab-node.mjs"
 fi
 
-for file in index.html app.js worklet.js capture-worklet.js style.css; do
+for file in index.html app.js worklet.js capture-worklet.js worklet-keepalive.js style.css; do
   cp "$SRC/$file" "$OUT/$file"
 done
 cp "$ROOT/lab/contracts/presets.json" "$OUT/presets.json"
