@@ -12,32 +12,13 @@ M0 establishes a portable real-time DSP architecture specifically capable of sup
 
 M0 is architecturally centered on one C++20 `resonant_core`. Browser/WASM, VST3/JUCE, embedded hardware and other synths are thin Hosts around that shared core; host-specific DSP duplication is prohibited.
 
-## M0 result
-
-The merged `main` branch contains the full 22-section M0 contract/runtime foundation:
-
-- normative product/scope, sonic, terminology and core-boundary contracts;
-- hard real-time processing rules;
-- float32 non-interleaved block transport with sample-level model feedback;
-- sample-accurate deterministic events;
-- native/normalized parameters with sample-rate-aware smoothing;
-- generic exciter/resonator compatibility contracts;
-- feedback, energy/stability and lifecycle contracts;
-- deterministic PCG32 randomness/voice seed derivation;
-- Debug/Release, MSVC/GCC/Clang and sanitizer CI;
-- deterministic offline WAV render host;
-- unit/property/regression testing foundation;
-- WASM/VST3/embedded portability proof for M0 scope;
-- research/reference record and accepted ADR register;
-- final hostile Breath Pipe architecture review and M0 completion gate.
-
 The `ReferenceFeedbackProbe` remains an **M0 architectural fixture**, not the Breath Pipe voice and not the preferred musical model.
 
 M0 is frozen as the baseline for later milestones. Later work may extend it through explicit architecture decisions, but must not silently reinterpret the M0 invariants or Host/core boundary.
 
 ## M1 — First Resonator
 
-**Status: CANDIDATE — engineering gates pass; live play-test gate remains.**
+**Status: COMPLETE AND FROZEN.**
 
 M1 adds the first concrete musical resonator without changing the frozen Engine/Host architecture:
 
@@ -45,23 +26,54 @@ M1 adds the first concrete musical resonator without changing the frozen Engine/
 - `TunedDelayResonator` — fixed-memory fractional-delay resonance with damping, passive loss, active regeneration and bounded in-loop nonlinearity;
 - `FirstResonatorVoice` — sample-accurate, smoothed composition of those primitives with energy/stability observation;
 - deterministic offline render scenes used only for regression evidence;
-- a browser AudioWorklet/WASM play-test host that runs the same C++ `FirstResonatorVoice` live.
+- a browser AudioWorklet/WASM acceptance harness that runs the same C++ `FirstResonatorVoice` live.
+
+M1 exact head `910616d0396ab516fa0b3272fe3067c23bffacb6` passed CI #60 and hostile review, then passed the human live gate through the later M2 Lab using the identical `FirstResonatorVoice` core. PR #4 merged to `main` as `54ebc45e4a0b2c96a7733ce99f49b3855acad9a7`; the merged tree is identical to the green exact-head tree.
 
 The M1 reference model is deliberately generic and replaceable. It is **not Breath Pipe**, not a Steampipe clone and not a rule that future Resonant Engine models must use tuned delays.
 
-Exact implementation-head CI has passed Ubuntu, macOS and Windows in Debug/Release, ASan+UBSan and the no-exceptions/no-RTTI core probe. The hostile architecture review found no M0 invariant violation. M1 remains a candidate until the live synth passes human playability acceptance and the final protected merge gate.
+## M2 — Resonant Engine Lab
 
-### Play the M1 synth
+**Status: FINAL CANDIDATE — human acceptance PASS; final exact-head CI/hostile review/merge gate remain.**
 
-Build the browser acceptance host with Emscripten:
+M2 makes the headless engine observable, measurable and reproducibly testable by humans.
+
+**Resonant Engine Lab is not a browser synth.** It is a bounded diagnostic/test host around the shared C++ engine.
+
+The Lab provides:
+
+- the same `FirstResonatorVoice` implementation compiled to WASM;
+- a fixed eight-voice test bank outside `resonant_core` for chord/polyphony stress;
+- exact note, velocity, parameter and canonical preset controls;
+- start/suspend/reset/panic lifecycle;
+- waveform and spectrum;
+- fundamental frequency and C2–C6 cents-error capture;
+- RMS, peak and DC offset;
+- resonator energy and stability state;
+- active/held/max voices and voice steals;
+- instantaneous/smoothed/max WASM process CPU load;
+- canonical A01–A09 scripted human acceptance tests;
+- deterministic audio-quantum scenario scheduling;
+- JSON evidence, optional WAV capture and plot PNG export;
+- native/WASM deterministic signature comparison;
+- automated Chromium, Firefox, WebKit and Microsoft Edge browser smoke gates.
+
+The realtime AudioWorklet path has been repaired after a browser-scope timing crash was isolated, and A01 Pluck now carries a measurable decay-audibility regression gate. Human A01–A09 acceptance is **PASS**.
+
+The Lab deliberately does **not** provide a performance piano, computer-keyboard instrument, Web MIDI performance workflow, patch designer or browser-specific synthesis algorithm.
+
+### Build the Lab
+
+With Emscripten active:
 
 ```sh
-./hosts/browser/m1/build.sh
+./hosts/browser/lab/build.sh
+python3 -m http.server 8000 --directory build/resonant-lab
 ```
 
-Then serve `build/m1-browser/` on localhost. The CI-produced `m1-playable-browser-*` artifact contains the already-built harness and launch scripts.
+Open `http://127.0.0.1:8000/` and press **Start audio**.
 
-The play-test supports computer-keyboard notes, Web MIDI notes, CC1/mod-wheel or channel pressure as continuous excitation, and live control of turbulence, damping, regeneration, nonlinearity and resonator/exciter interaction.
+Canonical test/preset contracts live in `lab/contracts/`. Detailed definitions and evidence rules are in `docs/M2-RESONANT-ENGINE-LAB.md`.
 
 ## Protected future Breath Pipe reference
 
@@ -103,9 +115,18 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Offline render tools exist for deterministic regression evidence. They are not the human M1 acceptance method.
+Offline render tools are deterministic regression evidence. They are not substitutes for human listening gates.
 
 ## Documentation
+
+M2:
+
+- `docs/M2-RESONANT-ENGINE-LAB.md`
+- `docs/M2-COMPLETION.md`
+- `docs/decisions/ADR-0024-M2-RESONANT-ENGINE-LAB.md`
+- `hosts/browser/lab/README.md`
+- `lab/contracts/presets.json`
+- `lab/contracts/acceptance-tests.json`
 
 M1:
 

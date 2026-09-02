@@ -72,6 +72,24 @@ All decisions below are **Accepted for M0**. A later contradiction must supersed
 
 ## Contradiction review
 
-No accepted ADR contradicts another: ADR-0002/0007/0008/0020/0021/0022 align dependency direction; ADR-0009/0010/0011 align sample timing; ADR-0013/0014 align real-time constraints; ADR-0015/0016/0017 align feedback/stability; ADR-0018 and ADR-0019 extend excitation/coupling without narrowing the Engine.
+No accepted M0 ADR contradicts another: ADR-0002/0007/0008/0020/0021/0022 align dependency direction; ADR-0009/0010/0011 align sample timing; ADR-0013/0014 align real-time constraints; ADR-0015/0016/0017 align feedback/stability; ADR-0018 and ADR-0019 extend excitation/coupling without narrowing the Engine.
 
 **M0.20 ADR set: APPROVED.**
+
+---
+
+# Post-M0 decisions
+
+Later milestone decisions extend the frozen M0 set. They do not silently rewrite an M0 ADR.
+
+## ADR-0023 — M1 first resonator
+
+**File:** `ADR-0023-M1-FIRST-RESONATOR.md`  
+**Decision:** M1 uses a deterministic continuously excited noise source, fixed-capacity tuned-delay resonator, active regeneration and bounded nonlinearity as the first concrete musical model while preserving the generic Engine/Host contracts.  
+**Scope:** M1 candidate; the selected model is not Breath Pipe and does not make tuned delay universal.
+
+## ADR-0024 — M2 Resonant Engine Lab
+
+**File:** `ADR-0024-M2-RESONANT-ENGINE-LAB.md`  
+**Decision:** the browser-facing M2 surface is a diagnostic/human-acceptance Lab around shared C++ DSP, not a browser synth. Test orchestration, measurement and evidence may live outside `resonant_core`; browser-specific synthesis may not.  
+**Scope:** accepted for the M2 candidate and subject to the M2 final evidence/merge gates.
