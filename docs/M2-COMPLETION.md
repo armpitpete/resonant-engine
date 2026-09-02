@@ -1,6 +1,6 @@
 # M2 — Resonant Engine Lab Completion
 
-Status: **FINAL CANDIDATE — HUMAN ACCEPTANCE PASS; FRESH EXACT-HEAD CI / HOSTILE REVIEW / MERGE GATE REMAIN**
+Status: **FINAL CANDIDATE — HUMAN ACCEPTANCE PASS; FRESH EXACT-HEAD CI / MERGE GATE REMAIN**
 
 ## Scope
 
@@ -58,7 +58,7 @@ M2 makes the canonical headless engine observable and testable by humans without
 - [x] A09 Extreme stability.
 - [x] all nine listened to by a human and accepted.
 
-A01 initially failed because the pluck was too quiet. The defect was treated as a Lab acceptance-stimulus/listening-calibration problem rather than hidden with global engine gain. The final A01 uses a stronger bounded excitation/decay calibration and browser CI now enforces a measurable decay RMS floor at the 700 ms mark. The final human A01 retest passed.
+A01 initially failed because the pluck was too quiet. The defect was treated as a Lab acceptance-stimulus/listening-calibration problem rather than hidden with global engine gain. The final A01 has stronger bounded excitation/decay calibration and browser CI enforces a measurable decay RMS floor at the 700 ms mark. The final human A01 retest passed.
 
 ### M2.4 Automated runner and evidence
 
@@ -70,11 +70,12 @@ A01 initially failed because the pluck was too quiet. The defect was treated as 
 - [x] marked measurement capture.
 - [x] automatic and human verdicts separated.
 - [x] canonical JSON evidence schema.
-- [x] exact Git commit recorded in browser build.
 - [x] browser/user-agent, sample rate, block size, polyphony and preset captured.
 - [x] stability transitions and CPU maxima captured.
 - [x] listener notes and PASS/FAIL/INVESTIGATE field.
 - [x] JSON export, optional WAV capture/export and waveform+spectrum PNG export.
+- [x] `ENGINE_COMMIT` is stamped from the exact PR source head in pull-request CI rather than GitHub's synthetic merge SHA.
+- [x] the synthetic commit actually tested by CI is retained separately as `BUILD_INFO.testedCommit` and in the artifact/workflow identity.
 
 ### M2.5 Failure detection and recovery
 
@@ -83,10 +84,12 @@ A01 initially failed because the pluck was too quiet. The defect was treated as 
 - [x] active voice telemetry exposes stuck voice conditions.
 - [x] CPU >100% is classified as realtime failure/investigation.
 - [x] invalid UI values are clamped to C++ metadata ranges.
-- [x] panic clears voices.
-- [x] deterministic reset restores known defaults/seeds.
-- [x] protected output is silenced until reset.
-- [x] evidence preserves hard-failure telemetry.
+- [x] protected output is silenced until an explicit Lab recovery action.
+- [x] `Panic` is an explicit recovery action: it clears/resets child voices while retaining parameter state.
+- [x] `Reset` is the full deterministic recovery action: it restores canonical defaults/seeds, voices and CPU history.
+- [x] evidence retains any hard-failure telemetry observed before recovery.
+
+This matches the actual Lab implementation and does not redefine the frozen M0 lifecycle contract.
 
 ### M2.6 Browser/platform verification
 
@@ -97,15 +100,15 @@ A01 initially failed because the pluck was too quiet. The defect was treated as 
 - [x] Firefox automated smoke gate.
 - [x] WebKit automated smoke gate.
 - [x] Microsoft Edge automated smoke gate.
-- [x] realtime smoke now proves active audio processing rather than constructor readiness alone.
-- [x] A01 browser regression now enforces non-trivial decay audibility.
+- [x] realtime smoke proves active audio processing rather than constructor readiness alone.
+- [x] A01 browser regression enforces non-trivial decay audibility.
 - [x] host errors remain distinct from core protected-state failures.
 
 Playwright WebKit is not represented as manual Safari evidence; no Safari-specific release claim is made by M2.
 
 ### M2.7 CI evidence
 
-Before final documentation reconciliation, exact M2 head `b9fdd3fe964756b18ad9899288714700d8f963a0` passed CI #90 (`33687382606`):
+Earlier implementation head `b9fdd3fe964756b18ad9899288714700d8f963a0` passed CI #90 (`33687382606`), including:
 
 - [x] Ubuntu GCC Debug/Release.
 - [x] macOS Clang Debug/Release.
@@ -119,9 +122,18 @@ Before final documentation reconciliation, exact M2 head `b9fdd3fe964756b18ad989
 - [x] WebKit realtime browser smoke.
 - [x] Microsoft Edge realtime browser smoke.
 
-This completion/README/M1-closure reconciliation changes the M2 exact head, so a fresh exact-head CI PASS is intentionally required before PR #5 can leave Draft.
+Final documentation, M1 closure reconciliation and evidence-provenance hardening deliberately changed the M2 head, so one final exact-head CI PASS is required before PR #5 can leave Draft.
 
-### M2.8 Documentation
+### M2.8 Hostile review
+
+Final diff review against merged M1 `main` found and resolved two blockers:
+
+1. recovery documentation incorrectly implied only `Reset` could leave Lab protection even though `Panic` explicitly resets child voices and recovers while retaining parameters;
+2. pull-request builds used GitHub's synthetic merge SHA as `ENGINE_COMMIT`, obscuring the exact candidate head.
+
+Both are resolved. No remaining blocking architecture, realtime, evidence, browser-product-boundary or M0-invariant defect is known.
+
+### M2.9 Documentation
 
 - [x] M2 architecture and measurement definitions documented.
 - [x] browser-Lab boundary documented.
@@ -138,15 +150,15 @@ This completion/README/M1-closure reconciliation changes the M2 exact head, so a
 
 M2 cannot be marked FINAL PASS until all of the following are true:
 
-1. [ ] fresh exact-head CI PASS after final documentation reconciliation and retarget to merged `main`;
-2. [ ] final hostile diff review against `main` finds no blocker;
+1. [ ] fresh exact-head CI PASS after final hostile-review repairs;
+2. [x] final hostile diff review against `main` completed with blockers repaired;
 3. [x] human A01-A09 acceptance PASS;
 4. [x] no currently known blocking defect remains;
-5. [ ] PR #5 is moved from Draft to Ready after non-protected evidence is current;
+5. [ ] PR #5 is moved from Draft to Ready after exact-head CI is green;
 6. [ ] protected exact-head merge is separately authorised and completed;
 7. [ ] post-merge `main` verification records the merged tree/commit;
 8. [ ] M2 is declared FINAL PASS and frozen.
 
 ## Current decision
 
-**M2 FINAL CANDIDATE. Human acceptance is complete; final governance/CI closure remains.**
+**M2 FINAL CANDIDATE. Human acceptance and hostile review are complete; final exact-head CI and protected merge closure remain.**
