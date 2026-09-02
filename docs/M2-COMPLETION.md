@@ -1,6 +1,6 @@
 # M2 — Resonant Engine Lab Completion
 
-Status: **ENGINEERING CANDIDATE — exact-head CI and human listening evidence pending**
+Status: **FINAL CANDIDATE — HUMAN ACCEPTANCE PASS; FRESH EXACT-HEAD CI / HOSTILE REVIEW / MERGE GATE REMAIN**
 
 ## Scope
 
@@ -29,6 +29,7 @@ M2 makes the canonical headless engine observable and testable by humans without
 - [x] active/held/max voice and steal telemetry.
 - [x] fixed eight-voice bounded test bank.
 - [x] native/WASM parity signature gate implemented.
+- [x] realtime AudioWorklet crash isolated to unsupported `performance.now()` use in AudioWorklet scope and repaired with an AudioWorklet-safe clock bridge.
 
 ### M2.2 Measurement tools
 
@@ -43,45 +44,39 @@ M2 makes the canonical headless engine observable and testable by humans without
 - [x] stability state.
 - [x] active voices.
 - [x] instantaneous/smoothed/max WASM process CPU load.
-- [x] known signal/path validation is covered by native/WASM signature and existing M1 deterministic regression; browser measurement sanity remains part of human Lab use.
 
 ### M2.3 Human acceptance suite
 
-- [x] A01 Pluck defined and runnable.
-- [x] A02 Sustained pipe defined and runnable.
-- [x] A03 Damping sweep defined and runnable.
-- [x] A04 Feedback sweep defined and runnable.
-- [x] A05 C2-C6 pitch run defined and runnable.
-- [x] A06 Velocity response defined and runnable.
-- [x] A07 Chord/polyphony defined and runnable.
-- [x] A08 Self-oscillation defined and runnable.
-- [x] A09 Extreme stability defined and runnable.
-- [ ] all nine listened to by a human at the exact M2 candidate and verdicts recorded.
+- [x] A01 Pluck.
+- [x] A02 Sustained pipe.
+- [x] A03 Damping sweep.
+- [x] A04 Feedback sweep.
+- [x] A05 C2-C6 pitch run.
+- [x] A06 Velocity response.
+- [x] A07 Chord/polyphony.
+- [x] A08 Self-oscillation.
+- [x] A09 Extreme stability.
+- [x] all nine listened to by a human and accepted.
 
-### M2.4 Automated runner
+A01 initially failed because the pluck was too quiet. The defect was treated as a Lab acceptance-stimulus/listening-calibration problem rather than hidden with global engine gain. The final A01 uses a stronger bounded excitation/decay calibration and browser CI now enforces a measurable decay RMS floor at the 700 ms mark. The final human A01 retest passed.
+
+### M2.4 Automated runner and evidence
 
 - [x] machine-readable acceptance definitions.
 - [x] declarative programs compiled to primitive actions.
 - [x] audio-frame/quantum deterministic scheduler.
-- [x] selected-test execution.
-- [x] run-all-nine execution.
+- [x] selected-test and run-all-nine execution.
 - [x] abort -> panic recovery.
 - [x] marked measurement capture.
 - [x] automatic and human verdicts separated.
-
-### M2.5 Evidence capture
-
 - [x] canonical JSON evidence schema.
 - [x] exact Git commit recorded in browser build.
 - [x] browser/user-agent, sample rate, block size, polyphony and preset captured.
-- [x] expected/actions/observed measurements captured.
 - [x] stability transitions and CPU maxima captured.
 - [x] listener notes and PASS/FAIL/INVESTIGATE field.
-- [x] JSON export.
-- [x] optional WAV capture/export.
-- [x] waveform+spectrum PNG export.
+- [x] JSON export, optional WAV capture/export and waveform+spectrum PNG export.
 
-### M2.6 Failure detection and recovery
+### M2.5 Failure detection and recovery
 
 - [x] core NaN/Infinity/numerical-process failure reaches protected state.
 - [x] pre-monitor core peak and energy expose runaway growth.
@@ -93,30 +88,40 @@ M2 makes the canonical headless engine observable and testable by humans without
 - [x] protected output is silenced until reset.
 - [x] evidence preserves hard-failure telemetry.
 
-### M2.7 Browser/platform verification
+### M2.6 Browser/platform verification
 
 - [x] explicit user-start handles autoplay restrictions.
 - [x] responsive UI has no DSP dependency on viewport size.
 - [x] suspend/resume lifecycle implemented.
-- [x] Chromium automated smoke gate implemented.
-- [x] Firefox automated smoke gate implemented.
-- [x] WebKit automated smoke gate implemented.
-- [x] Microsoft Edge automated smoke gate implemented on Windows.
+- [x] Chromium automated smoke gate.
+- [x] Firefox automated smoke gate.
+- [x] WebKit automated smoke gate.
+- [x] Microsoft Edge automated smoke gate.
+- [x] realtime smoke now proves active audio processing rather than constructor readiness alone.
+- [x] A01 browser regression now enforces non-trivial decay audibility.
 - [x] host errors remain distinct from core protected-state failures.
-- [ ] exact-head browser matrix CI evidence recorded.
-- [ ] manual Safari listening, if required for a release claim; Playwright WebKit alone is not labelled Safari evidence.
 
-### M2.8 CI and regression
+Playwright WebKit is not represented as manual Safari evidence; no Safari-specific release claim is made by M2.
 
-- [x] Lab native unit/stress/determinism tests added.
-- [x] WASM Lab compilation gate added.
-- [x] JSON/JavaScript artifact validation added.
-- [x] native/WASM deterministic signature comparison added.
-- [x] four-engine browser smoke matrix added.
-- [x] existing compiler/Debug/Release/sanitizer/core-portability gates retained.
-- [ ] exact M2 candidate CI pass recorded.
+### M2.7 CI evidence
 
-### M2.9 Documentation
+Before final documentation reconciliation, exact M2 head `b9fdd3fe964756b18ad9899288714700d8f963a0` passed CI #90 (`33687382606`):
+
+- [x] Ubuntu GCC Debug/Release.
+- [x] macOS Clang Debug/Release.
+- [x] Windows MSVC Debug/Release.
+- [x] ASan+UBSan.
+- [x] no-exceptions/no-RTTI portability probe.
+- [x] WASM Lab build.
+- [x] native/WASM deterministic signature parity.
+- [x] Chromium realtime browser smoke.
+- [x] Firefox realtime browser smoke.
+- [x] WebKit realtime browser smoke.
+- [x] Microsoft Edge realtime browser smoke.
+
+This completion/README/M1-closure reconciliation changes the M2 exact head, so a fresh exact-head CI PASS is intentionally required before PR #5 can leave Draft.
+
+### M2.8 Documentation
 
 - [x] M2 architecture and measurement definitions documented.
 - [x] browser-Lab boundary documented.
@@ -126,15 +131,22 @@ M2 makes the canonical headless engine observable and testable by humans without
 - [x] evidence format documented.
 - [x] known browser interpretation limits documented.
 - [x] ADR-0024 records the no-browser-synth decision.
+- [x] M1 completion status reconciled to merged/frozen state.
+- [x] README reconciled to M1 complete and M2 human PASS state.
 
 ## Final gate
 
-M2 cannot truthfully be marked final until all of the following evidence exists:
+M2 cannot be marked FINAL PASS until all of the following are true:
 
-1. exact-head CI PASS for native tests, WASM build, native/WASM parity and browser matrix;
-2. a human has run/listened to A01-A09 at that candidate and stored verdict/evidence;
-3. no blocking defect remains;
-4. the candidate passes the protected merge gate;
-5. post-merge `main` verification records the merged commit.
+1. [ ] fresh exact-head CI PASS after final documentation reconciliation and retarget to merged `main`;
+2. [ ] final hostile diff review against `main` finds no blocker;
+3. [x] human A01-A09 acceptance PASS;
+4. [x] no currently known blocking defect remains;
+5. [ ] PR #5 is moved from Draft to Ready after non-protected evidence is current;
+6. [ ] protected exact-head merge is separately authorised and completed;
+7. [ ] post-merge `main` verification records the merged tree/commit;
+8. [ ] M2 is declared FINAL PASS and frozen.
 
-Until then, the implementation is an engineering candidate rather than a completed human-acceptance milestone.
+## Current decision
+
+**M2 FINAL CANDIDATE. Human acceptance is complete; final governance/CI closure remains.**
