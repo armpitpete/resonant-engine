@@ -13,17 +13,47 @@ EM_JS(double, re_m3_now_ms, (), {
 namespace {
 
 constexpr std::uint32_t kRenderQuantum = resonant_lab::BreathPipeLabEngine::kMaximumBlockSize;
+constexpr double kCpuObservationBudgetMs = 100.0;
 resonant_lab::BreathPipeLabEngine g_lab;
 std::array<resonant::Sample, kRenderQuantum> g_output{};
 double g_sample_rate = 48'000.0;
 double g_cpu_load = 0.0;
 double g_cpu_load_smoothed = 0.0;
 double g_cpu_load_max = 0.0;
+double g_cpu_elapsed_accumulator_ms = 0.0;
+double g_cpu_budget_accumulator_ms = 0.0;
 
 void resetCpu() noexcept {
     g_cpu_load = 0.0;
     g_cpu_load_smoothed = 0.0;
     g_cpu_load_max = 0.0;
+    g_cpu_elapsed_accumulator_ms = 0.0;
+    g_cpu_budget_accumulator_ms = 0.0;
+}
+
+void observeCpu(double elapsed_ms, double budget_ms) noexcept {
+    if (elapsed_ms < 0.0 || budget_ms <= 0.0) {
+        return;
+    }
+    // Date.now() is intentionally used because performance.now() is not
+    // consistently available in AudioWorkletGlobalScope. A single 128-frame
+    // quantum can complete below its 1 ms clock resolution, so accumulate a
+    // meaningful observation window before publishing CPU load. This prevents
+    // a stream of false 0% readings from being accepted as performance proof.
+    g_cpu_elapsed_accumulator_ms += elapsed_ms;
+    g_cpu_budget_accumulator_ms += budget_ms;
+    if (g_cpu_budget_accumulator_ms < kCpuObservationBudgetMs) {
+        return;
+    }
+    g_cpu_load = 100.0 * g_cpu_elapsed_accumulator_ms / g_cpu_budget_accumulator_ms;
+    g_cpu_load_smoothed = g_cpu_load_smoothed == 0.0
+                              ? g_cpu_load
+                              : (0.80 * g_cpu_load_smoothed + 0.20 * g_cpu_load);
+    if (g_cpu_load > g_cpu_load_max) {
+        g_cpu_load_max = g_cpu_load;
+    }
+    g_cpu_elapsed_accumulator_ms = 0.0;
+    g_cpu_budget_accumulator_ms = 0.0;
 }
 
 } // namespace
@@ -67,13 +97,7 @@ EMSCRIPTEN_KEEPALIVE int re_process(std::uint32_t frames) noexcept {
     const auto ok = g_lab.process(std::span<resonant::Sample>{g_output.data(), frames});
     const auto elapsed_ms = re_m3_now_ms() - start;
     const auto budget_ms = 1'000.0 * static_cast<double>(frames) / g_sample_rate;
-    g_cpu_load = budget_ms > 0.0 ? 100.0 * elapsed_ms / budget_ms : 0.0;
-    g_cpu_load_smoothed = g_cpu_load_smoothed == 0.0
-                              ? g_cpu_load
-                              : (0.94 * g_cpu_load_smoothed + 0.06 * g_cpu_load);
-    if (g_cpu_load > g_cpu_load_max) {
-        g_cpu_load_max = g_cpu_load;
-    }
+    observeCpu(elapsed_ms, budget_ms);
     return ok ? 1 : 0;
 }
 
