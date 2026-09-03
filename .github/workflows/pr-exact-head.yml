@@ -1,0 +1,110 @@
+name: PR Exact Head
+
+on:
+  pull_request:
+
+concurrency:
+  group: pr-exact-head-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  native:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Configure
+        run: cmake -S . -B build -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+
+  sanitizers:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Configure ASan and UBSan
+        run: cmake -S . -B build-sanitize -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON -DRESONANT_ENGINE_ENABLE_SANITIZERS=ON -DCMAKE_BUILD_TYPE=Debug
+      - name: Build
+        run: cmake --build build-sanitize
+      - name: Test
+        run: ctest --test-dir build-sanitize --output-on-failure
+
+  no-exceptions-rtti-portability-probe:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Compile core headers without exceptions/RTTI assumptions
+        run: >-
+          c++ -std=c++20 -fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic
+          -Icore/include -c core/src/Core.cpp -o /tmp/resonant-core-portability.o
+
+  m3-wasm-parity:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.6
+          actions-cache-folder: emsdk-cache
+      - name: Build M3 Breath Pipe Lab and Node parity module
+        env:
+          RESONANT_LAB_BUILD_NODE_PARITY: "1"
+          RESONANT_LAB_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+        run: bash hosts/browser/lab/build-m3.sh
+      - name: Verify exact-head M3 artifact and contracts
+        run: |
+          test -s build/resonant-m3-lab/index.html
+          test -s build/resonant-m3-lab/app.js
+          test -s build/resonant-m3-lab/worklet.js
+          test -s build/resonant-m3-lab/capture-worklet.js
+          test -s build/resonant-m3-lab/resonant-lab.js
+          test -s build/resonant-m3-lab/resonant-lab-node.mjs
+          test -s build/resonant-m3-lab/build-info.js
+          node --check build/resonant-m3-lab/app.js
+          node --check build/resonant-m3-lab/worklet.js
+          node --check hosts/browser/lab/m3-parity.mjs
+          node --check tests/browser/m3_lab_smoke.mjs
+          python3 -m json.tool lab/contracts/m3-presets.json >/dev/null
+          python3 -m json.tool lab/contracts/m3-acceptance-tests.json >/dev/null
+          grep -F "commit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+          grep -F "model: 'breath-pipe'" build/resonant-m3-lab/build-info.js
+      - name: Compare M3 native and WASM signatures
+        run: |
+          c++ -std=c++20 -O3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror -Icore/include -Ilab/include tools/breath_pipe_signature/main.cpp -o build/resonant-m3-lab/native-signature
+          build/resonant-m3-lab/native-signature > build/resonant-m3-lab/native-signature.json
+          node hosts/browser/lab/m3-parity.mjs build/resonant-m3-lab/resonant-lab-node.mjs > build/resonant-m3-lab/wasm-signature.json
+          python3 tests/regression/compare_lab_signatures.py build/resonant-m3-lab/native-signature.json build/resonant-m3-lab/wasm-signature.json
+      - name: Upload exact-head M3 Breath Pipe Lab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resonant-engine-m3-lab-${{ env.SOURCE_SHA }}
+          if-no-files-found: error
+          path: build/resonant-m3-lab/
