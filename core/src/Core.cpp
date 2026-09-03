@@ -1,3 +1,4 @@
+#include "resonant/BreathPipe.hpp"
 #include "resonant/Engine.hpp"
 #include "resonant/Energy.hpp"
 #include "resonant/Event.hpp"
@@ -12,4 +13,5 @@
 namespace resonant {
 static_assert(sizeof(Sample) == 4, "M0 requires float32 audio samples");
 static_assert(EngineModel<FirstResonatorVoice>);
+static_assert(EngineModel<BreathPipeVoice>);
 } // namespace resonant
