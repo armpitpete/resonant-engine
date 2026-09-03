@@ -39,6 +39,58 @@ for file in index.html app.js worklet.js capture-worklet.js style.css; do
 done
 cp "$ROOT/lab/contracts/m3-presets.json" "$OUT/presets.json"
 cp "$ROOT/lab/contracts/m3-acceptance-tests.json" "$OUT/acceptance-tests.json"
+
+# Keep the M2 source host frozen. The M3 artifact is a projection of that Lab
+# with Breath-Pipe-specific labels/evidence fields injected only into the built
+# output. This avoids turning M2's diagnostic host into a second implementation.
+python3 - "$OUT" <<'PY'
+from pathlib import Path
+import sys
+
+out = Path(sys.argv[1])
+app = out.joinpath("app.js").read_text()
+needle = "  [107, 'Interaction'],\n]);"
+replacement = """  [107, 'Interaction'],
+  [201, 'Pitch Hz'],
+  [202, 'Pressure'],
+  [203, 'Turbulence'],
+  [204, 'Interaction'],
+  [205, 'Damping / loss'],
+  [206, 'Regeneration'],
+  [207, 'Feedback colour'],
+  [208, 'Nonlinear drive'],
+  [209, 'External excitation'],
+  [210, 'Timbre'],
+  [901, 'Lab external-audio probe'],
+]);"""
+if needle not in app:
+    raise SystemExit("M3 build could not locate parameter-name insertion point")
+app = app.replace(needle, replacement, 1)
+app = app.replace(
+    "    ENGINE_COMMIT: BUILD_INFO.commit,\n",
+    "    ENGINE_COMMIT: BUILD_INFO.commit,\n    MODEL: BUILD_INFO.model ?? 'first-resonator',\n    MILESTONE: BUILD_INFO.milestone ?? 'M2',\n",
+    1,
+)
+out.joinpath("app.js").write_text(app)
+
+worklet = out.joinpath("worklet.js").read_text()
+needle = "      protectedState: Boolean(m._re_protected_state()),\n      cpuLoad: m._re_cpu_load(),"
+replacement = """      protectedState: Boolean(m._re_protected_state()),
+      overblowAmount: typeof m._re_overblow_amount === 'function' ? m._re_overblow_amount() : null,
+      modeEnergy: typeof m._re_mode_energy === 'function'
+        ? [m._re_mode_energy(0), m._re_mode_energy(1), m._re_mode_energy(2)]
+        : null,
+      cpuLoad: m._re_cpu_load(),"""
+if needle not in worklet:
+    raise SystemExit("M3 build could not locate telemetry insertion point")
+worklet = worklet.replace(needle, replacement, 1)
+out.joinpath("worklet.js").write_text(worklet)
+
+index = out.joinpath("index.html").read_text()
+index = index.replace("Resonant Engine Lab", "Resonant Engine Lab — M3 Breath Pipe")
+out.joinpath("index.html").write_text(index)
+PY
+
 cat > "$OUT/build-info.js" <<EOF
 export const BUILD_INFO = Object.freeze({ commit: '${SOURCE_COMMIT}', testedCommit: '${TESTED_COMMIT}', model: 'breath-pipe', milestone: 'M3' });
 EOF
