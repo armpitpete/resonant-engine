@@ -5,8 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +29,7 @@ jobs:
 
   browser-lab-build-parity:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: mymindstorm/setup-emsdk@v14
@@ -69,6 +75,7 @@ jobs:
 
   browser-lab-smoke:
     needs: browser-lab-build-parity
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +110,7 @@ jobs:
 
   sanitizers:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Configure ASan and UBSan
@@ -114,6 +122,7 @@ jobs:
 
   no-exceptions-rtti-portability-probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Compile core headers without exceptions/RTTI assumptions
