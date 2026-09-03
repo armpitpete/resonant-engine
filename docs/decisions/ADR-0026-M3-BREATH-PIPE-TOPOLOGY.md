@@ -1,6 +1,6 @@
 # ADR-0026 — M3 Breath Pipe Topology Selection
 
-Status: **CANDIDATE — AWAITING EXACT-HEAD EVIDENCE**
+Status: **ACCEPTED FOR M3**
 
 ## Context
 
@@ -38,7 +38,7 @@ The modal resonator remains Breath-Pipe-specific. This decision does **not** pro
 
 `tests/unit/test_breath_pipe_contract.cpp` separately verifies the selected topology at the M3 stable-pipe operating point, across the declared sample-rate/block envelope, and proves that feedback colour and nonlinear drive alter resonator state through/in the energetic loop.
 
-The candidate is accepted only when those tests pass at the exact M3 head together with sanitizers and native/WASM parity.
+The executable selection and contract tests passed with sanitizers and native/WASM parity on exact-head run #3 at `39a8708dda67d7ff3720dfc13ba307d93f780a6e` and again on post-monitor exact-head run #5 at `b7d251aa9082ae2a4226f0dfde44ce8855e47101`. The topology-selection acceptance condition is therefore satisfied.
 
 ## Alternatives
 
@@ -65,4 +65,4 @@ Advantages: very small fixed state, direct continuous tuning, explicit observabl
 
 ## Acceptance
 
-Change this ADR to **ACCEPTED FOR M3** only after the executable selection and Breath Pipe contract tests pass at the exact candidate head. M3 FINAL PASS still additionally requires B01–B18 human acceptance, final platform/browser evidence, hostile review, protected exact-head merge authorisation and post-merge reconciliation.
+**ACCEPTED FOR M3.** The topology-selection gate is closed by exact-head executable evidence. This does not by itself declare M3 FINAL PASS; M3 still requires final platform/browser evidence, final hostile review, protected exact-head merge authorisation and post-merge reconciliation.
