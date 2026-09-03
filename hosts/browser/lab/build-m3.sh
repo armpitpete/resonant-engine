@@ -71,6 +71,15 @@ app = app.replace(
     "    ENGINE_COMMIT: BUILD_INFO.commit,\n    MODEL: BUILD_INFO.model ?? 'first-resonator',\n    MILESTONE: BUILD_INFO.milestone ?? 'M2',\n",
     1,
 )
+estimator = "      fundamentalEstimator: 'decimated autocorrelation, 50-2000 Hz',\n"
+if estimator not in app:
+    raise SystemExit("M3 build could not locate fundamental-estimator evidence field")
+app = app.replace(
+    estimator,
+    "      fundamentalEstimator: 'diagnostic decimated autocorrelation, 50-2000 Hz; native M3 contract is authoritative for C2-C6 tuning',\n"
+    "      dcEstimator: 'AnalyserNode 8192-frame mean; scenario block-mean telemetry is not a DC-offset verdict',\n",
+    1,
+)
 out.joinpath("app.js").write_text(app)
 
 worklet = out.joinpath("worklet.js").read_text()
@@ -84,6 +93,18 @@ replacement = """      protectedState: Boolean(m._re_protected_state()),
 if needle not in worklet:
     raise SystemExit("M3 build could not locate telemetry insertion point")
 worklet = worklet.replace(needle, replacement, 1)
+telemetry_vocabulary = {
+    "      outputBlockDc: this.blockDiagnostics.dcOffset,\n":
+        "      outputBlockMean: this.blockDiagnostics.dcOffset,\n",
+    "      scenarioMaxAbsDc: d.maxAbsDc,\n":
+        "      scenarioMaxAbsBlockMean: d.maxAbsDc,\n",
+    "      scenarioExcessiveDc: d.excessiveDc,\n":
+        "      scenarioLargeBlockMean: d.excessiveDc,\n",
+}
+for old, new in telemetry_vocabulary.items():
+    if old not in worklet:
+        raise SystemExit(f"M3 build could not locate telemetry vocabulary: {old.strip()}")
+    worklet = worklet.replace(old, new, 1)
 out.joinpath("worklet.js").write_text(worklet)
 
 index = out.joinpath("index.html").read_text()
@@ -98,6 +119,8 @@ index = index.replace(
     1,
 )
 index = index.replace("Run all nine", "Run all", 1)
+index = index.replace("<span>Fundamental</span>", "<span>Fundamental (diagnostic)</span>", 1)
+index = index.replace("<span>DC offset</span>", "<span>DC offset (long-window)</span>", 1)
 monitor = '<label>Monitor level <input id="monitor-level" type="range" min="0" max="0.8" step="0.01" value="0.6"></label>'
 monitor_replacement = '<label>Monitor level (audition only) <input id="monitor-level" type="range" min="0" max="4" step="0.05" value="2"></label>'
 if monitor not in index:
