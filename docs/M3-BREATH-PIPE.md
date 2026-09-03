@@ -1,6 +1,8 @@
 # M3 — Breath Pipe Reference Voice
 
-Status: **PLANNED — CONTRACT DEFINITION**
+Status: **CLOSURE CANDIDATE — FINAL ACCEPTANCE IN PROGRESS**
+
+M3.0–M3.12 are implemented. The Breath Pipe sound/model is the accepted closure candidate; M3.13 human closure, M3.14 final hosted platform evidence and M3.15 final hostile review/merge/freeze remain gated by the completion rules below.
 
 ## Goal
 
