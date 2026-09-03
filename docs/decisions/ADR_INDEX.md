@@ -98,4 +98,10 @@ Later milestone decisions extend the frozen M0 set. They do not silently rewrite
 
 **File:** `ADR-0025-M3-BREATH-PIPE-REFERENCE-VOICE.md`  
 **Decision:** M3 proves the protected Breath Pipe continuum with one continuously interacting reference model, begins with an evidence-backed topology-selection gate, separates musical macro controls from DSP coefficients, keeps MIDI/Host semantics outside the model, requires explicit generic-primitive promotion, and proves external excitation through the real interaction path.  
-**Scope:** proposed for M3 contract definition; becomes accepted when the contract PR passes review/CI and merges.
+**Scope:** M3 implementation candidate; final acceptance remains gated by human/platform/hostile/merge evidence.
+
+## ADR-0026 — M3 Breath Pipe topology selection
+
+**File:** `ADR-0026-M3-BREATH-PIPE-TOPOLOGY.md`  
+**Decision:** select the bounded three-mode interacting modal resonator for the M3 Breath Pipe reference voice; retain tuned-delay and scattering/waveguide families as valid future alternatives rather than genericizing the selected topology.  
+**Scope:** candidate decision until exact-head selection/contract tests pass; does not become M3 FINAL PASS by itself.
