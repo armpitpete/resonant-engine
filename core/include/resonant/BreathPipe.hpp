@@ -165,9 +165,9 @@ public:
                 value = 0.0F;
             }
             // Gentle bounded nonlinearity is inside the modal recursion, not a
-            // post-output effect. It limits active regeneration without erasing
-            // musically unstable finite states.
-            const auto denominator = 1.0F + std::abs(value) /
+            // post-output effect. Zero nonlinear drive leaves the modal recursion
+            // exactly linear; bounded containment below still protects state.
+            const auto denominator = 1.0F + control.nonlinear_drive * std::abs(value) /
                                               std::max(1.0F, state_limit * 20.0F);
             value /= denominator;
             next[mode] = EnergyMonitor::contain(value, 12.0F);
