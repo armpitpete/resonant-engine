@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -11,11 +12,28 @@ concurrency:
 
 jobs:
   build-and-test:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+
+  build-and-test-cross-platform:
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
         build_type: [Debug, Release]
     runs-on: ${{ matrix.os }}
     steps:
@@ -28,7 +46,7 @@ jobs:
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
 
   browser-lab-build-parity:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +126,7 @@ jobs:
           path: build/resonant-m3-lab/
 
   browser-lab-smoke:
+    if: github.event_name == 'workflow_dispatch'
     needs: browser-lab-build-parity
     timeout-minutes: 20
     strategy:
@@ -143,6 +162,7 @@ jobs:
         run: node tests/browser/lab_smoke.mjs build/resonant-lab
 
   browser-m3-lab-smoke:
+    if: github.event_name == 'workflow_dispatch'
     needs: browser-lab-build-parity
     timeout-minutes: 25
     strategy:
@@ -178,7 +198,7 @@ jobs:
         run: node tests/browser/m3_lab_smoke.mjs build/resonant-m3-lab
 
   sanitizers:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -190,7 +210,7 @@ jobs:
         run: ctest --test-dir build-sanitize --output-on-failure
 
   no-exceptions-rtti-portability-probe:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
