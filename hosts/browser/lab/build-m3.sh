@@ -98,6 +98,11 @@ index = index.replace(
     1,
 )
 index = index.replace("Run all nine", "Run all", 1)
+monitor = '<label>Monitor level <input id="monitor-level" type="range" min="0" max="0.8" step="0.01" value="0.6"></label>'
+monitor_replacement = '<label>Monitor level (audition only) <input id="monitor-level" type="range" min="0" max="4" step="0.05" value="2"></label>'
+if monitor not in index:
+    raise SystemExit("M3 build could not locate monitor-level control")
+index = index.replace(monitor, monitor_replacement, 1)
 out.joinpath("index.html").write_text(index)
 PY
 
