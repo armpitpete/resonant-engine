@@ -2,7 +2,7 @@
 
 Status: **PRE-CLOSURE REVIEW — FINAL REVIEW STILL REQUIRED**
 
-Candidate reviewed: PR #7 head `714df0b758ff1f92f1590c69169c293b3d30bcea`.
+Candidate reviewed initially: PR #7 head `714df0b758ff1f92f1590c69169c293b3d30bcea`, with closure fixes continuing on the same branch.
 
 This review is deliberately adversarial. It does not declare M3 complete and does not substitute for B01–B18 human acceptance or the final platform gates.
 
@@ -30,7 +30,7 @@ This review is deliberately adversarial. It does not declare M3 complete and doe
 - Numerical failure propagates to the existing protected/failure path rather than being silently labelled musical instability.
 - Per-voice seeds remain deterministic and independent through the Lab allocator.
 
-## Closure blockers found
+## Closure defects found
 
 ### H1 — CI provenance was not strict raw-head evidence
 
@@ -45,6 +45,14 @@ Resolution: add a dedicated `PR Exact Head` workflow that checks out `github.eve
 `docs/M3-COMPLETION.md` still said `PLANNED — 0/16 SECTIONS COMPLETE` and `implementation has not begun` even though the PR contains the Breath Pipe implementation, tests, Lab adapter and acceptance suite.
 
 Resolution: reconcile the ledger to implementation-candidate state while leaving M3.13–M3.15 open.
+
+### H3 — M3 human-suite projection retained stale M2 count text
+
+The built M3 Lab loaded all 18 B-series scenarios and `Run all` queued the complete `state.tests` array, but the inherited button label still said `Run all nine` and the heading still presented the artifact as `M2 — Resonant Engine Lab — M3 Breath Pipe`.
+
+This does not remove tests, but it is unacceptable at the human acceptance gate because the interface contradicts the canonical B01–B18 suite.
+
+Resolution: keep frozen M2 source files unchanged and fix only the `build-m3.sh` projection so the artifact is titled `M3 — Breath Pipe Reference Voice Lab` and the batch control is count-neutral `Run all`.
 
 ## Gates intentionally still open
 

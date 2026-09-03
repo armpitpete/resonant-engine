@@ -87,7 +87,17 @@ worklet = worklet.replace(needle, replacement, 1)
 out.joinpath("worklet.js").write_text(worklet)
 
 index = out.joinpath("index.html").read_text()
-index = index.replace("Resonant Engine Lab", "Resonant Engine Lab — M3 Breath Pipe")
+index = index.replace(
+    "<title>Resonant Engine Lab</title>",
+    "<title>Resonant Engine Lab — M3 Breath Pipe</title>",
+    1,
+)
+index = index.replace(
+    "<h1>M2 — Resonant Engine Lab</h1>",
+    "<h1>M3 — Breath Pipe Reference Voice Lab</h1>",
+    1,
+)
+index = index.replace("Run all nine", "Run all", 1)
 out.joinpath("index.html").write_text(index)
 PY
 
