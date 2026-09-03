@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUT="${1:-$ROOT/build/resonant-m3-lab}"
 SRC="$ROOT/hosts/browser/lab"
 SOURCE_COMMIT="${RESONANT_LAB_SOURCE_SHA:-${GITHUB_SHA:-$(git -C "$ROOT" rev-parse HEAD)}}"
-TESTED_COMMIT="${GITHUB_SHA:-$SOURCE_COMMIT}"
+TESTED_COMMIT="${RESONANT_LAB_TESTED_SHA:-${GITHUB_SHA:-$SOURCE_COMMIT}}"
 EXPORTED="['_re_prepare','_re_reset','_re_panic','_re_set_parameter','_re_parameter_value','_re_note_on','_re_note_off','_re_process','_re_output_ptr','_re_parameter_count','_re_parameter_id','_re_parameter_min','_re_parameter_max','_re_parameter_default','_re_resonator_energy','_re_core_output_rms','_re_core_peak','_re_stability_state','_re_active_voices','_re_held_voices','_re_max_active_voices','_re_maximum_polyphony','_re_voice_steals','_re_protected_state','_re_overblow_amount','_re_mode_energy','_re_cpu_load','_re_cpu_load_smoothed','_re_cpu_load_max']"
 
 rm -rf "$OUT"

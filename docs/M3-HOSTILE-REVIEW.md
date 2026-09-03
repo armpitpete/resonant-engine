@@ -54,6 +54,14 @@ This does not remove tests, but it is unacceptable at the human acceptance gate 
 
 Resolution: keep frozen M2 source files unchanged and fix only the `build-m3.sh` projection so the artifact is titled `M3 — Breath Pipe Reference Voice Lab` and the batch control is count-neutral `Run all`.
 
+### H4 — exact-head artifact retained synthetic tested-commit provenance
+
+The first raw-head validation artifact correctly recorded `commit: 9a52d3dc08fa7be5de77191612d33b5b3e8142dd`, but `testedCommit` still came from the pull-request event's `GITHUB_SHA` and therefore recorded synthetic merge commit `cbae7b79a60456f1b8adf08db5c4d2d7f147347d` even though the workflow had explicitly checked out and tested the raw head.
+
+The DSP result was not invalid, but the artifact provenance was internally contradictory and could not be accepted as final evidence.
+
+Resolution: add an explicit `RESONANT_LAB_TESTED_SHA` override to the M3 build, set both source and tested SHA to the verified raw head in `PR Exact Head`, and assert both fields in the generated `build-info.js`. Normal PR integration CI continues to record the synthetic merge commit as the tested commit, preserving the distinction between raw-head and tested-merge evidence.
+
 ## Gates intentionally still open
 
 - B01–B18 human listening/interaction acceptance;

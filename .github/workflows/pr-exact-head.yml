@@ -78,6 +78,7 @@ jobs:
         env:
           RESONANT_LAB_BUILD_NODE_PARITY: "1"
           RESONANT_LAB_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+          RESONANT_LAB_TESTED_SHA: ${{ env.SOURCE_SHA }}
         run: bash hosts/browser/lab/build-m3.sh
       - name: Verify exact-head M3 artifact and contracts
         run: |
@@ -95,6 +96,7 @@ jobs:
           python3 -m json.tool lab/contracts/m3-presets.json >/dev/null
           python3 -m json.tool lab/contracts/m3-acceptance-tests.json >/dev/null
           grep -F "commit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+          grep -F "testedCommit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
           grep -F "model: 'breath-pipe'" build/resonant-m3-lab/build-info.js
       - name: Compare M3 native and WASM signatures
         run: |
