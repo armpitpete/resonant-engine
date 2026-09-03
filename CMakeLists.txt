@@ -92,6 +92,12 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_breath_pipe_tests)
     add_test(NAME resonant_breath_pipe_tests COMMAND resonant_breath_pipe_tests)
 
+    add_executable(resonant_breath_pipe_contract_tests tests/unit/test_breath_pipe_contract.cpp)
+    target_link_libraries(resonant_breath_pipe_contract_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_breath_pipe_contract_tests)
+    resonant_apply_sanitizers(resonant_breath_pipe_contract_tests)
+    add_test(NAME resonant_breath_pipe_contract_tests COMMAND resonant_breath_pipe_contract_tests)
+
     add_executable(resonant_breath_pipe_allocation_tests tests/unit/test_breath_pipe_allocation.cpp)
     target_link_libraries(resonant_breath_pipe_allocation_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_breath_pipe_allocation_tests)
