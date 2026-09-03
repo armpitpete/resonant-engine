@@ -1,6 +1,6 @@
 # M3 — Breath Pipe Reference Voice Completion
 
-Status: **CLOSURE CANDIDATE — M3.0–M3.12 IMPLEMENTED; HUMAN/PLATFORM CLOSURE GATES OPEN**
+Status: **CLOSURE CANDIDATE — M3.0–M3.13 COMPLETE; PLATFORM/FINAL CLOSURE GATES OPEN**
 
 Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 
@@ -19,8 +19,8 @@ Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 - [x] M3.10 — Stability, Extremes & Recovery
 - [x] M3.11 — Polyphony, Voice Independence & CPU Scaling
 - [x] M3.12 — External Excitation Proof
-- [ ] M3.13 — Human B-Series Acceptance Suite — sonic verdict positive; final monitor-level confirmation pending
-- [ ] M3.14 — Portability, Performance & Evidence — exact-head Linux/WASM evidence strong; hosted platform allocation blocked
+- [x] M3.13 — Human B-Series Acceptance Suite — PASS
+- [ ] M3.14 — Portability, Performance & Evidence — exact-head Linux/WASM evidence PASS; hosted platform allocation blocked
 - [ ] M3.15 — Hostile Review, Completion & Freeze
 
 ## Exact-head automated evidence
@@ -37,7 +37,17 @@ Dedicated `PR Exact Head` run #3 then passed all five raw-head jobs on `39a8708d
 
 The exact artifact recorded both `commit` and `testedCommit` as `39a8708dda67d7ff3720dfc13ba307d93f780a6e` and contained all B01–B18 scenarios.
 
-After the human listener reported low volume, the M3 Lab audition monitor alone was raised in `b7d251aa9082ae2a4226f0dfde44ce8855e47101`. No C++ DSP/model file changed. `PR Exact Head` run #5 is the post-monitor raw-head proof and must complete before that head is credited.
+After the human listener reported low volume, the M3 Lab audition monitor alone was raised in `b7d251aa9082ae2a4226f0dfde44ce8855e47101`. No C++ DSP/model file changed.
+
+`PR Exact Head` run #5 (`33786351281`) then passed all five raw-head jobs on `b7d251aa9082ae2a4226f0dfde44ce8855e47101`:
+
+- native Debug — PASS;
+- native Release — PASS;
+- ASan + UBSan — PASS;
+- no-exceptions/no-RTTI portability probe — PASS;
+- M3 WASM build, exact artifact provenance and native/WASM parity — PASS.
+
+This proves the post-monitor head without changing the approved Breath Pipe synthesis implementation.
 
 ## Human B01–B18 evidence
 
@@ -45,28 +55,28 @@ The listener ran the complete B01–B18 batch on the exact `39a8708d…` artifac
 
 The low-level complaint was traced to the Lab monitor itself: the inherited control defaulted to `0.6x` and was capped at `0.8x`. The M3 projection now defaults to `2x` audition gain and allows up to `4x`; analyser, WAV capture, telemetry and the Breath Pipe DSP remain before that gain.
 
-The sound-approved B01–B18 evidence therefore remains valid. M3.13 stays formally open only until the corrected monitor level is briefly re-auditioned and confirmed satisfactory without changing the sound.
+The corrected monitor was then re-auditioned against the same sound-approved WASM DSP. The listener's final confirmation was: **Level good, sound still good.**
 
-- [ ] B01 — Silence
-- [ ] B02 — Faint air
-- [ ] B03 — Turbulence
-- [ ] B04 — Pitch emergence
-- [ ] B05 — Stable pipe
-- [ ] B06 — Pressure response
-- [ ] B07 — Damping response
-- [ ] B08 — Regeneration
-- [ ] B09 — Self-sustain
-- [ ] B10 — Overblow
-- [ ] B11 — Forward/reverse continuum
-- [ ] B12 — Hysteresis & recovery
-- [ ] B13 — Expressive performance
-- [ ] B14 — Pitch & register
-- [ ] B15 — Aggressive/noise regime
-- [ ] B16 — Polyphony
-- [ ] B17 — External excitation
-- [ ] B18 — Extreme stability
+That closes M3.13 as a human-suite PASS. The acceptance record deliberately preserves the distinction between automated per-scenario evidence and the direct human suite verdict rather than fabricating retrospective per-test JSON verdicts.
 
-These boxes will be closed together when the listener confirms the monitor correction; the existing batch plus the direct human verdict are retained as separate automated and human evidence rather than fabricating per-test JSON verdicts after the fact.
+- [x] B01 — Silence
+- [x] B02 — Faint air
+- [x] B03 — Turbulence
+- [x] B04 — Pitch emergence
+- [x] B05 — Stable pipe
+- [x] B06 — Pressure response
+- [x] B07 — Damping response
+- [x] B08 — Regeneration
+- [x] B09 — Self-sustain
+- [x] B10 — Overblow
+- [x] B11 — Forward/reverse continuum
+- [x] B12 — Hysteresis & recovery
+- [x] B13 — Expressive performance
+- [x] B14 — Pitch & register
+- [x] B15 — Aggressive/noise regime
+- [x] B16 — Polyphony
+- [x] B17 — External excitation
+- [x] B18 — Extreme stability
 
 ## B08 block-mean / DC evidence disposition
 
@@ -85,7 +95,7 @@ The authoritative M3 tuning gate is `tests/unit/test_breath_pipe_contract.cpp`, 
 - median absolute tuning error <= 15 cents;
 - no measured note > 30 cents error.
 
-The browser fundamental display remains useful as a diagnostic but is explicitly labelled non-authoritative for the C2–C6 contract.
+That contract passed on exact-head runs #3 and #5. The browser fundamental display remains useful as a diagnostic but is explicitly labelled non-authoritative for the C2–C6 contract.
 
 ## M3.14 hosted platform gate
 
@@ -106,7 +116,7 @@ No Safari claim is implied by Playwright WebKit.
 
 ## Hostile review state
 
-The pre-closure hostile review has found no DSP/architecture blocker. Closure defects H1–H7 have concrete resolutions; H8 is the still-open hosted-runner allocation blocker. A final hostile review is required only after the final human monitor confirmation and hosted platform evidence are complete.
+The pre-closure hostile review has found no DSP/architecture blocker. Closure defects H1–H7 have concrete resolutions; H8 is the still-open hosted-runner allocation blocker. A final hostile review is required only after the hosted platform evidence is complete.
 
 ## Final gate
 
@@ -114,4 +124,4 @@ M3 cannot be marked FINAL PASS until the canonical completion gate is satisfied,
 
 ## Current decision
 
-**The Breath Pipe sound/model is accepted as the M3 closure candidate. Do not add features or retune the synthesis unless a remaining gate demonstrates a specific defect.**
+**The Breath Pipe sound/model and B01–B18 human suite are accepted for M3. Do not add features or retune the synthesis unless a remaining gate demonstrates a specific defect.**
