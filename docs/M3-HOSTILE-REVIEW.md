@@ -62,13 +62,43 @@ The DSP result was not invalid, but the artifact provenance was internally contr
 
 Resolution: add an explicit `RESONANT_LAB_TESTED_SHA` override to the M3 build, set both source and tested SHA to the verified raw head in `PR Exact Head`, and assert both fields in the generated `build-info.js`. Normal PR integration CI continues to record the synthetic merge commit as the tested commit, preserving the distinction between raw-head and tested-merge evidence.
 
+### H5 — the human Lab attenuated the accepted sound
+
+The first B01–B18 human run produced a positive sonic verdict — the sounds were good — but the listener reported that the volume was low. Inspection showed the inherited M2 monitor control defaulted to `0.6x` gain and was capped at `0.8x`, so the Lab was attenuating an already conservative core signal.
+
+Resolution: change only the built M3 projection to a clearly labelled audition-only monitor control with `2x` default and `4x` maximum. The analyser, WAV capture, core telemetry and Breath Pipe DSP remain before that gain, so this does not alter the accepted synthesis or measurement evidence.
+
+### H6 — a 128-frame block mean was labelled as DC offset
+
+The B08 regeneration run recorded `scenarioMaxAbsDc = 0.05116955156699987` and `scenarioExcessiveDc = true`, while its 8192-frame analyser measurement at the regenerative mark was only about `0.00055`, the recovery mark was about `0.00003`, and the run recovered to near-zero final DC. At 48 kHz a 128-frame mean spans only 2.67 ms, so a low-frequency musical oscillation can produce a large block mean without representing a real DC component.
+
+The old telemetry vocabulary therefore overstated what the measurement proved. It was not a demonstrated numerical/DC failure.
+
+Resolution: keep frozen M2 source semantics unchanged, but in the built M3 projection rename the telemetry evidence to `outputBlockMean`, `scenarioMaxAbsBlockMean` and `scenarioLargeBlockMean`. The long-window analyser remains the Lab's DC-offset diagnostic. The M3 evidence metadata explicitly states this distinction.
+
+### H7 — browser autocorrelation aliased the low B14 registers
+
+The B14 browser evidence reported the autocorrelation estimator at its 2 kHz ceiling for C2 and C3 even though the same run was sonically accepted and higher registers were coherent. This is a diagnostic estimator failure, not valid evidence that the model was tuned to 2 kHz.
+
+The canonical M3 tuning gate already exists independently in `tests/unit/test_breath_pipe_contract.cpp`: it directly measures C2, C3, C4, C5 and C6 at 44.1, 48 and 96 kHz, requires median absolute error at or below 15 cents and rejects any measured note above 30 cents error.
+
+Resolution: retain the browser autocorrelator as a diagnostic display but label it explicitly as diagnostic in the M3 projection and name the native M3 contract as authoritative for the C2–C6 tuning criterion. Do not alter the approved Breath Pipe DSP to satisfy a faulty browser estimator.
+
+### H8 — hosted platform jobs failed before runner allocation
+
+Two final-platform attempts requested `ubuntu-latest`, `windows-latest` and `macos-latest`. Every runnable hosted job failed with no workflow steps, no runner name and `runner_id: 0`; the browser-smoke matrix then skipped because its hosted build prerequisite never ran.
+
+This is not evidence of a CMake, compiler, Emscripten, browser or DSP failure because none of those steps executed. It is a real M3.14 closure blocker until GitHub-hosted runner allocation is restored and the required Windows/macOS/browser jobs actually run.
+
+Resolution state: **OPEN — external hosted-runner allocation must be restored and the platform workflow rerun.**
+
 ## Gates intentionally still open
 
-- B01–B18 human listening/interaction acceptance;
+- final human confirmation that the corrected audition monitor level is satisfactory without changing the accepted sound;
 - Windows MSVC Debug/Release;
 - macOS Clang Debug/Release;
 - Chromium, Firefox, Playwright WebKit and Microsoft Edge realtime M3 Lab smoke/CPU gates;
-- final hostile review after all acceptance-driven changes;
+- final hostile review after all acceptance-driven changes and platform evidence;
 - exact final-head merge authorisation;
 - merge and post-merge `main` proof;
 - FINAL PASS documentation and freeze.
