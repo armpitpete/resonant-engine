@@ -41,7 +41,7 @@ struct CandidateEvidence {
 // Deliberately small M3.1 prototype: two travelling-wave delay rails with a
 // nonlinear reflection junction. It establishes that a scattering approach is
 // computationally credible and bidirectional, but this bounded prototype has no
-// continuously controlled register-reorganisation mechanism.
+// continuously controlled pitch or register-reorganisation mechanism.
 class ScatteringWaveguidePrototype {
 public:
     static constexpr std::size_t kCapacity = 1024U;
@@ -107,7 +107,7 @@ private:
         silent,
         returned_energy,
         returned_energy,
-        true,
+        false, // this bounded prototype has no continuous tuning control
         false, // credible base, but extra mode/register machinery would be required
         true,
     };
@@ -166,6 +166,8 @@ int main() {
           "all topology candidates preserve true silence");
     check(scattering.bidirectional_interaction,
           "scattering prototype demonstrates credible bidirectional topology");
+    check(!scattering.continuous_pitch,
+          "scattering prototype is not credited with unimplemented pitch control");
     check(modal.continuous_overblow_reorganisation,
           "selected modal candidate demonstrates continuous register reorganisation");
     check(modal.memory_bytes < tuned.memory_bytes,
