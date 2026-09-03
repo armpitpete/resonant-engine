@@ -79,11 +79,13 @@ Canonical test/preset contracts live in `lab/contracts/`. Detailed definitions a
 
 ## M3 — Breath Pipe Reference Voice
 
-**Status: PLANNED — CONTRACT DEFINITION.**
+**Status: IMPLEMENTATION CANDIDATE — FINAL VALIDATION IN PROGRESS.**
 
 M3 turns the frozen architecture, first resonator and Lab into the first fully expressive Resonant Engine reference voice.
 
-The Breath Pipe must behave as one continuously interacting energetic system rather than a set of pipe presets. The protected acceptance continuum is:
+The implemented candidate is a bounded three-mode interacting modal model. It was selected over the M1 tuned-delay extension and a bounded scattering-waveguide prototype because it provides the required compact continuous pitch/register reorganisation with much smaller fixed resonator state. The selection remains Breath-Pipe-specific and does not make modal synthesis a generic Engine requirement.
+
+The Breath Pipe behaves as one continuously interacting energetic system rather than a set of pipe presets. The protected acceptance continuum is:
 
 ```text
 silence
@@ -98,11 +100,13 @@ silence
 → noise
 ```
 
-M3 adds an evidence-backed model/topology selection gate before the final voice is chosen. The M1 tuned-delay model is a candidate, not a predetermined answer. Musical macro controls are separate from low-level DSP coefficients; MIDI/MPE/hardware mappings remain Host-side. Breath-Pipe-specific code stays model-specific unless a reusable primitive passes an explicit promotion rule.
+The candidate includes pressure/turbulence excitation, bidirectional returned-state interaction, active regeneration/self-sustain, in-loop nonlinearity, feedback spectral shaping, continuous modal overblow, model-level expressive controls, external-audio excitation, deterministic fixed-state processing, bounded Lab polyphony, B01–B18 acceptance programs and a separate Breath Pipe WASM Lab projection.
 
 The initial M3 operating envelope requires 44.1/48/96 kHz behaviour, native block-size coverage from 32–1024 frames plus validity at the M0 4096-frame maximum, C2–C6 stable-pitch acceptance, four-voice musical polyphony with eight-voice stress, no added host-visible buffering, explicit tuning/CPU gates, and an external-audio excitation proof.
 
-Human acceptance expands to B01–B18 covering silence, air, turbulence, pitch emergence, stable pipe, pressure/damping response, regeneration, self-sustain, overblow, forward/reverse continuum, hysteresis/recovery, expressive performance, pitch/register, aggressive/noise behaviour, polyphony, external excitation and extreme stability.
+Routine native, sanitizer, portability and native/WASM validation is routed to the repository-scoped `oracle-resonant-engine-01` runner. Windows/macOS and four-browser realtime smoke remain deliberate final platform gates rather than per-commit hosted jobs.
+
+Human acceptance is B01–B18 covering silence, air, turbulence, pitch emergence, stable pipe, pressure/damping response, regeneration, self-sustain, overblow, forward/reverse continuum, hysteresis/recovery, expressive performance, pitch/register, aggressive/noise behaviour, polyphony, external excitation and extreme stability.
 
 M3 remains **not a Steampipe clone, not a browser synth product, and not a requirement that future Resonant Engine models use the Breath Pipe topology**.
 
@@ -125,6 +129,7 @@ M3:
 - `docs/M3-BREATH-PIPE.md`
 - `docs/M3-COMPLETION.md`
 - `docs/decisions/ADR-0025-M3-BREATH-PIPE-REFERENCE-VOICE.md`
+- `docs/decisions/ADR-0026-M3-BREATH-PIPE-TOPOLOGY.md`
 
 M2:
 
