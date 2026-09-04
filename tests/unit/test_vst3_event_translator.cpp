@@ -122,6 +122,42 @@ void testSameSampleMonophonicOrdering() {
 
 }
 
+void testChunkRebasing() {
+    resonant::vst3::HostEventTranslator translator;
+    resonant::FixedEventBuffer<resonant::kMaxEventsPerBlock> chunk;
+
+    translator.beginBlock(8192U);
+    check(translator.noteOn(4095U, 60, 0.0F, 0.5F, 1),
+          "last frame of first chunk accepted");
+    check(translator.noteOn(4096U, 67, 0.0F, 0.7F, 2),
+          "first frame of second chunk accepted");
+
+    check(translator.buildChunk(0U, 4096U, chunk),
+          "first legal core chunk builds");
+    auto events = chunk.span();
+    check(events.size() == 3U,
+          "first chunk contains only first note expansion");
+    for (const auto& event : events) {
+        check(event.sample_offset == 4095U,
+              "first chunk keeps terminal sample offset");
+    }
+
+    check(translator.buildChunk(4096U, 4096U, chunk),
+          "second legal core chunk builds");
+    events = chunk.span();
+    check(events.size() == 3U,
+          "second chunk contains only second note expansion");
+    for (const auto& event : events) {
+        check(event.sample_offset == 0U,
+              "second chunk rebases first host frame to zero");
+    }
+
+    check(!translator.buildChunk(8192U, 1U, chunk),
+          "chunk outside host block rejected");
+    check(!translator.buildChunk(0U, 0U, chunk),
+          "zero-frame chunk rejected");
+}
+
 void testOrderingAndFallbackIdentity() {
     resonant::vst3::HostEventTranslator translator;
     translator.beginBlock(128U);
@@ -201,6 +237,7 @@ int main() {
     testNoteOnAndIdentity();
     testReleasePressureAndTuningExpression();
     testSameSampleMonophonicOrdering();
+    testChunkRebasing();
     testOrderingAndFallbackIdentity();
     testMalformedAndOverflowPolicy();
 
