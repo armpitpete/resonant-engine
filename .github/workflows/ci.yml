@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths:
+      - "core/**"
+      - "lab/**"
+      - "hosts/browser/**"
+      - "tools/lab_signature/**"
+      - "tools/breath_pipe_signature/**"
+      - "tests/browser/**"
+      - "tests/regression/compare_lab_signatures.py"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +21,7 @@ concurrency:
 
 jobs:
   build-and-test:
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 20
     strategy:
@@ -200,6 +210,7 @@ jobs:
         run: node tests/browser/m3_lab_smoke.mjs build/resonant-m3-lab
 
   sanitizers:
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 20
     steps:
@@ -212,6 +223,7 @@ jobs:
         run: ctest --test-dir build-sanitize --output-on-failure
 
   no-exceptions-rtti-portability-probe:
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
     timeout-minutes: 10
     steps:
