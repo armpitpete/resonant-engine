@@ -35,10 +35,10 @@ void testNoteOnAndIdentity() {
               events[1].sample_offset == 32U &&
               events[2].sample_offset == 32U,
           "sample offset preserved");
-    check(events[0].note_id == 42U &&
-              events[1].note_id == 42U &&
+    check(events[0].note_id == resonant::kNoNoteId &&
+              events[1].note_id == resonant::kNoNoteId &&
               events[2].note_id == 42U,
-          "supplied VST note identity preserved without colliding with no-note id");
+          "global controls stay global while NoteOn preserves stable identity");
     check(std::abs(events[0].value - 440.0F) < 1.0e-4F,
           "MIDI pitch maps to Hz");
     check(events[1].value == 0.75F && events[2].value == 0.75F,
@@ -59,7 +59,7 @@ void testReleasePressureAndTuningExpression() {
     auto events = translator.events();
     check(events.size() == 1U &&
               events[0].type == resonant::EventType::Pitch &&
-              events[0].note_id == 8U &&
+              events[0].note_id == resonant::kNoNoteId &&
               events[0].value > 261.6F,
           "per-note tuning maps to portable pitch");
 
@@ -91,6 +91,29 @@ void testReleasePressureAndTuningExpression() {
           "matching note-off closes breath pressure");
     check(!translator.hasActiveNote(),
           "matching note-off clears active identity");
+}
+
+void testSameSampleMonophonicOrdering() {
+    resonant::vst3::HostEventTranslator translator;
+    translator.beginBlock(128U);
+    check(translator.noteOn(48U, 67, 0.0F, 0.4F, 99),
+          "first same-sample note accepted");
+    check(translator.noteOn(48U, 72, 0.0F, 0.8F, 3),
+          "second same-sample note accepted");
+    const auto simultaneous = translator.events();
+    check(simultaneous.size() == 6U, "two note-ons expand deterministically");
+    check(simultaneous[0].type == resonant::EventType::Pitch &&
+              simultaneous[1].type == resonant::EventType::Pitch &&
+              simultaneous[0].value < simultaneous[1].value,
+          "same-sample global pitch preserves host insertion order");
+    check(simultaneous[2].type == resonant::EventType::Pressure &&
+              simultaneous[3].type == resonant::EventType::Pressure &&
+              simultaneous[2].value == 0.4F &&
+              simultaneous[3].value == 0.8F,
+          "same-sample pressure preserves host insertion order");
+    check(translator.activeNoteId() == 4U,
+          "last host note remains active independent of numeric note-id ordering");
+
 }
 
 void testOrderingAndFallbackIdentity() {
@@ -168,6 +191,7 @@ void testMalformedAndOverflowPolicy() {
 int main() {
     testNoteOnAndIdentity();
     testReleasePressureAndTuningExpression();
+    testSameSampleMonophonicOrdering();
     testOrderingAndFallbackIdentity();
     testMalformedAndOverflowPolicy();
 
