@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.3 COMPLETE — FINAL SLICE VALIDATION IN PROGRESS**
+Status: **M4.0–M4.3 MERGED AND COMPLETE — M4.4 IN PROGRESS**
 
 ## Goal
 
@@ -80,11 +80,13 @@ M4 must not change these accepted rules:
 
 ### M4.4 — Note and expression translation
 
-- [ ] NoteOn/NoteOff and velocity;
-- [ ] stable note identity where supplied;
-- [ ] pitch/pressure mapping through VST3 event/parameter facilities;
-- [ ] deterministic sample-offset ordering;
-- [ ] malformed/overflow policy using bounded event storage.
+- [x] NoteOn/NoteOff and velocity;
+- [x] stable note identity where supplied;
+- [x] pitch/pressure mapping through VST3 event/parameter facilities;
+- [x] deterministic sample-offset ordering;
+- [x] malformed/overflow policy using bounded event storage.
+
+Implementation is on the active M4.4 candidate and remains subject to exact-head Oracle validation and hostile review before protected merge.
 
 Full MPE is not required for M4 unless it falls naturally out of the portable event contract without broadening scope.
 
@@ -245,3 +247,10 @@ Routine PR validation remains on the self-hosted Oracle runner. Routine Lab buil
 For this M4.0–M4.3 reconciliation, hosted run #9 on `61b842d00ec910c4404d4df2b4caf17ceb7358a3` remains valid platform evidence because the later delta changes only workflow triggering, documentation/ADR text and additional SDK-free adapter tests. No VST3 processor, controller, adapter, SDK pin, CMake host build logic or validator command changed. Fresh exact-head Oracle validation is still required.
 
 This slice may leave draft only after that fresh exact-head self-hosted validation and hostile diff review pass. A fresh hosted matrix is required again before M4 final freeze if later M4 work changes any platform-sensitive implementation.
+
+
+## M4.0–M4.3 merge closure
+
+PR #10 merged at exact authorized head `19d159abb75fa6fa21dc0cefeed92549a0fe1980` as merge commit `e6caa090bf7766dc26bf3e62e3fa88f34c0dae6b`. The authorized head tree and merged tree were identical: `0590f4c06fb0bc080adac36d8047a8bf1795f414`.
+
+M4.0–M4.3 are therefore merged and complete. M4.4 proceeds from that exact merged main state.
