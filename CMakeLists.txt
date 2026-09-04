@@ -5,7 +5,7 @@ project(resonant_engine VERSION 0.0.1 LANGUAGES CXX)
 option(RESONANT_ENGINE_BUILD_TESTS "Build Resonant Engine tests" ON)
 option(RESONANT_ENGINE_BUILD_RENDER "Build offline render host" ON)
 option(RESONANT_ENGINE_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
-option(RESONANT_ENGINE_ENABLE_SANITIZERS "Enable ASan/UBSan on supported compilers" OFF)
+option(RESONANT_ENGINE_ENABLE_SANITIZERS "Enable ASan/UBSan on supported compilers" OFF)\noption(RESONANT_ENGINE_BUILD_VST3 "Build the M4 VST3 reference host" OFF)
 
 add_library(resonant_core STATIC core/src/Core.cpp)
 add_library(ResonantEngine::core ALIAS resonant_core)
@@ -117,6 +117,13 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_lab_tests)
     add_test(NAME resonant_lab_tests COMMAND resonant_lab_tests)
 
+    add_executable(resonant_vst3_adapter_tests tests/unit/test_vst3_core_adapter.cpp)
+    target_include_directories(resonant_vst3_adapter_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(resonant_vst3_adapter_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_vst3_adapter_tests)
+    resonant_apply_sanitizers(resonant_vst3_adapter_tests)
+    add_test(NAME resonant_vst3_adapter_tests COMMAND resonant_vst3_adapter_tests)
+
     add_executable(resonant_breath_pipe_lab_tests tests/unit/test_breath_pipe_lab.cpp)
     target_include_directories(resonant_breath_pipe_lab_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lab/include)
     target_link_libraries(resonant_breath_pipe_lab_tests PRIVATE ResonantEngine::core)
@@ -159,6 +166,14 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_warnings(resonant_first_resonator_regression_tests)
     resonant_apply_sanitizers(resonant_first_resonator_regression_tests)
     add_test(NAME resonant_first_resonator_regression_tests COMMAND resonant_first_resonator_regression_tests)
+
+    add_test(
+        NAME resonant_vst3_dependency_boundary
+        COMMAND ${CMAKE_COMMAND}
+            -DCORE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/core
+            -DVST3_DIR=${CMAKE_CURRENT_SOURCE_DIR}/hosts/vst3
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_vst3_boundary.cmake
+    )
 
     add_test(
         NAME resonant_core_dependency_boundary

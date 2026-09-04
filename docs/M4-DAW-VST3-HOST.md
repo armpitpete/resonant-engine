@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **DESIGN CANDIDATE**
+Status: **M4.0–M4.3 IMPLEMENTATION CANDIDATE — VALIDATION OPEN**
 
 ## Goal
 
@@ -196,3 +196,21 @@ M4 passes only when a real DAW can host the same accepted Breath Pipe system thr
 
 - Steinberg VST3 SDK: https://github.com/steinbergmedia/vst3sdk
 - VST3 Developer Portal: https://steinbergmedia.github.io/vst3_dev_portal/
+
+
+## M4.0–M4.3 implementation evidence
+
+Implementation slice head will be validated through two independent layers:
+
+1. routine SDK-free Oracle tests:
+   - `resonant_vst3_adapter_tests`;
+   - `resonant_vst3_dependency_boundary`;
+   - the existing full native/sanitizer/portability suite;
+2. branch-scoped hosted `M4 VST3 Build` jobs:
+   - Windows MSVC Debug/Release;
+   - macOS Clang Debug/Release;
+   - exact PR-head verification before build.
+
+The VST3 SDK is pinned to reproducible GitHub tag `v3.8.0_build_66`, superproject commit `9fad9770f2ae8542ab1a548a68c1ad1ac690abe0`. The Developer Portal lists VST 3.8.1, but no matching reproducible GitHub tag was available when M4.0 was established; M4 deliberately does not follow `master`.
+
+M4.0–M4.3 checkboxes remain open until both Oracle and hosted platform builds pass on the same implementation head.
