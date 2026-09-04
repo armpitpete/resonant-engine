@@ -64,6 +64,12 @@ void testReleasePressureAndTuningExpression() {
           "per-note tuning maps to portable pitch");
 
     translator.beginBlock(128U);
+    check(translator.noteExpressionTuning(14U, 0.60, 99),
+          "non-active tuning expression is safely ignored");
+    check(translator.events().empty(),
+          "tuning expression requires matching stable note identity");
+
+    translator.beginBlock(128U);
     check(translator.polyPressure(16U, 60, 0.9F, 7),
           "matching poly pressure translates");
     events = translator.events();
