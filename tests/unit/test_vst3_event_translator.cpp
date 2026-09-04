@@ -87,10 +87,10 @@ void testOrderingAndFallbackIdentity() {
     resonant::vst3::HostEventTranslator translator;
     translator.beginBlock(128U);
 
-    check(translator.noteOn(96U, 72, 0.0F, 0.6F, -1),
-          "anonymous note-on translates");
     check(translator.noteOff(24U, 72, 0.1F, -1),
           "anonymous note-off translates");
+    check(translator.noteOn(96U, 72, 0.0F, 0.6F, -1),
+          "anonymous note-on translates");
 
     const auto events = translator.events();
     check(!events.empty(), "ordered event buffer populated");
@@ -110,6 +110,13 @@ void testMalformedAndOverflowPolicy() {
     check(!translator.noteOn(64U, 60, 0.0F, 0.5F, 1),
           "out-of-range offset rejected");
     check(!translator.valid(), "malformed block marked invalid");
+
+    translator.beginBlock(64U);
+    check(translator.noteOn(32U, 60, 0.0F, 0.5F, 1),
+          "first ordered event accepted");
+    check(!translator.noteOff(16U, 60, 0.0F, 1),
+          "decreasing sample offset rejected");
+    check(!translator.valid(), "out-of-order block marked invalid");
 
     translator.beginBlock(64U);
     check(!translator.noteOn(
