@@ -84,7 +84,7 @@ public:
         }
 
         const auto note_id = mapNoteId(host_note_id);
-        if (!matchesActive(note_id, active_pitch_) || active_base_pitch_hz_ <= 0.0F) {
+        if (!matchesActiveIdentity(note_id) || active_base_pitch_hz_ <= 0.0F) {
             return true;
         }
         if (!reserve(1U)) {
@@ -222,6 +222,16 @@ private:
         if (events_.size() + count > kMaxEventsPerBlock) {
             overflowed_ = true;
             return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool matchesActiveIdentity(NoteId note_id) const noexcept {
+        if (!active_) {
+            return false;
+        }
+        if (note_id != kNoNoteId || active_note_id_ != kNoNoteId) {
+            return note_id == active_note_id_;
         }
         return true;
     }
