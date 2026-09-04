@@ -153,28 +153,6 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
     return true;
 }
 
-bool Processor::buildChunkEvents(std::uint32_t start_frame,
-                                 std::uint32_t frames) noexcept {
-    chunk_events_.clear();
-    const auto end_frame = start_frame + frames;
-
-    for (const auto& event : event_translator_.events()) {
-        if (event.sample_offset < start_frame) {
-            continue;
-        }
-        if (event.sample_offset >= end_frame) {
-            break;
-        }
-
-        auto rebased = event;
-        rebased.sample_offset -= start_frame;
-        if (!chunk_events_.push(rebased)) {
-            return false;
-        }
-    }
-    return !chunk_events_.overflowed();
-}
-
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
@@ -241,7 +219,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             chunk_outputs[channel] = output_buffers[channel] + processed;
         }
 
-        if (!buildChunkEvents(processed, chunk_frames)) {
+        if (!event_translator_.buildChunk(
+                processed, chunk_frames, chunk_events_)) {
             return fail_closed(processed);
         }
 
