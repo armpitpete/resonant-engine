@@ -56,7 +56,7 @@ void testReleasePressureAndTuningExpression() {
     translator.beginBlock(128U);
     check(translator.noteExpressionTuning(12U, 0.55, 7),
           "matching tuning expression translates");
-    events = translator.events();
+    auto events = translator.events();
     check(events.size() == 1U &&
               events[0].type == resonant::EventType::Pitch &&
               events[0].note_id == 8U &&
@@ -66,7 +66,7 @@ void testReleasePressureAndTuningExpression() {
     translator.beginBlock(128U);
     check(translator.polyPressure(16U, 60, 0.9F, 7),
           "matching poly pressure translates");
-    auto events = translator.events();
+    events = translator.events();
     check(events.size() == 1U &&
               events[0].type == resonant::EventType::Pressure &&
               events[0].value == 0.9F,
