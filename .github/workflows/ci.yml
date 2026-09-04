@@ -113,12 +113,14 @@ jobs:
           node hosts/browser/lab/m3-parity.mjs build/resonant-m3-lab/resonant-lab-node.mjs > build/resonant-m3-lab/wasm-signature.json
           python3 tests/regression/compare_lab_signatures.py build/resonant-m3-lab/native-signature.json build/resonant-m3-lab/wasm-signature.json
       - name: Upload M2 Lab artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: resonant-engine-lab-${{ github.sha }}
           if-no-files-found: error
           path: build/resonant-lab/
       - name: Upload M3 Breath Pipe Lab artifact
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: resonant-engine-m3-lab-${{ github.sha }}
