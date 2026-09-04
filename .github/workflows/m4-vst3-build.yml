@@ -1,15 +1,6 @@
 name: M4 VST3 Build
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "CMakeLists.txt"
-      - "core/**"
-      - "cmake/vst3_sdk.cmake"
-      - "cmake/check_vst3_boundary.cmake"
-      - "hosts/vst3/**"
-      - ".github/workflows/m4-vst3-build.yml"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +8,6 @@ permissions:
 
 jobs:
   vst3-build:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'm4/vst3-reference-host'
     strategy:
       fail-fast: false
       matrix:
@@ -27,14 +17,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-      - name: Verify PR head
-        if: github.event_name == 'pull_request'
+      - name: Record exact dispatched head
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          echo "SOURCE_SHA=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
 
       - name: Configure VST3 host
         run: >
