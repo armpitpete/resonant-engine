@@ -79,7 +79,7 @@ Canonical test/preset contracts live in `lab/contracts/`. Detailed definitions a
 
 ## M3 — Breath Pipe Reference Voice
 
-**Status: READY FOR PROTECTED MERGE AUTHORIZATION.**
+**Status: COMPLETE AND FROZEN.**
 
 M3 turns the frozen architecture, first resonator and Lab into the first fully expressive Resonant Engine reference voice.
 
@@ -108,7 +108,7 @@ Routine native, sanitizer, portability and native/WASM validation is routed to t
 
 Human acceptance is B01–B18 covering silence, air, turbulence, pitch emergence, stable pipe, pressure/damping response, regeneration, self-sustain, overblow, forward/reverse continuum, hysteresis/recovery, expressive performance, pitch/register, aggressive/noise behaviour, polyphony, external excitation and extreme stability.
 
-Implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` passed the exact-head Linux/WASM suite, sanitizers and portability probe, Windows/macOS Debug+Release, and Chromium/Firefox/Playwright WebKit/Microsoft Edge realtime smoke + CPU gates. The final pre-merge hostile review is PASS. Only documentation-head validation, protected exact-head merge authorization, merge and post-merge freeze evidence remain.
+Implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` passed the exact-head Linux/WASM suite, sanitizers and portability probe, Windows/macOS Debug+Release, and Chromium/Firefox/Playwright WebKit/Microsoft Edge realtime smoke + CPU gates. Final closure head `f38d0d7bce6b1fa8471dd1e96a1ac91783b0d2fa` then passed CI #142, PR Exact Head #7 and M3 Final Platform #4 before explicit merge authorisation. PR #7 merged to `main` as `a0bf3540f164c3466eee9592a493fb4bc2902d5d` with a tree identical to the authorised head, and post-merge CI #143 passed native Debug/Release, sanitizers, portability and M2/M3 native/WASM parity on the exact merged commit. M3 is complete and frozen.
 
 M3 remains **not a Steampipe clone, not a browser synth product, and not a requirement that future Resonant Engine models use the Breath Pipe topology**.
 

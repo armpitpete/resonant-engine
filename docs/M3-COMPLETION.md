@@ -1,6 +1,6 @@
 # M3 — Breath Pipe Reference Voice Completion
 
-Status: **READY FOR PROTECTED MERGE AUTHORIZATION — M3.0–M3.14 COMPLETE; FINAL HOSTILE REVIEW PASS; MERGE/POST-MERGE FREEZE OPEN**
+Status: **FINAL PASS — MERGED AND FROZEN**
 
 Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 
@@ -21,7 +21,7 @@ Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 - [x] M3.12 — External Excitation Proof
 - [x] M3.13 — Human B-Series Acceptance Suite — PASS
 - [x] M3.14 — Portability, Performance & Evidence — PASS
-- [ ] M3.15 — Hostile Review, Completion & Freeze — final hostile review PASS; protected merge/post-merge freeze remain
+- [x] M3.15 — Hostile Review, Completion & Freeze — PASS
 
 ## Exact-head automated evidence
 
@@ -59,6 +59,18 @@ The final implementation candidate head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d93
 - M3 WASM build, exact artifact provenance and native/WASM parity.
 
 This establishes `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` as the accepted exact implementation head before documentation-only closure reconciliation.
+
+The final documentation-only closure head `f38d0d7bce6b1fa8471dd1e96a1ac91783b0d2fa` then passed all required exact-head validation:
+
+- CI #142 (`33881473150`) — PASS;
+- `PR Exact Head` run #7 (`33881473178`) — PASS;
+- `M3 Final Platform` run #4 (`33881473140`) — PASS;
+- Windows MSVC Debug/Release — PASS;
+- macOS Clang Debug/Release — PASS;
+- Chromium, Firefox, Playwright WebKit and Microsoft Edge realtime smoke + CPU gates — PASS;
+- native Debug/Release, ASan+UBSan, no-exceptions/no-RTTI and native/WASM parity — PASS.
+
+The diff from the accepted implementation head to the final closure head changed only `README.md`, `docs/M3-COMPLETION.md` and `docs/M3-HOSTILE-REVIEW.md`.
 
 ## Human B01–B18 evidence
 
@@ -132,12 +144,50 @@ No Safari claim is implied by Playwright WebKit.
 
 **FINAL PRE-MERGE HOSTILE REVIEW: PASS** on implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`.
 
-No DSP, architecture, realtime, provenance, human-acceptance or platform blocker remains. H1–H8 are resolved. The only branch change after that review is this documentation-only closure reconciliation; it must receive fresh exact-head validation before the protected merge gate is opened.
+No DSP, architecture, realtime, provenance, human-acceptance or platform blocker remains. H1–H8 are resolved. The subsequent closure changes were documentation-only and the exact closure head passed fresh CI, exact-head and final-platform validation before merge authorisation.
+
+## Merge and post-merge verification
+
+PR #7 was merged at the exact authorised head:
+
+`f38d0d7bce6b1fa8471dd1e96a1ac91783b0d2fa`
+
+Merge commit on `main`:
+
+`a0bf3540f164c3466eee9592a493fb4bc2902d5d`
+
+Merged tree SHA:
+
+`594f62b5a6ba15725745d00d9b7cd32384549f82`
+
+Post-merge verification established:
+
+- [x] `main` points at merge commit `a0bf3540f164c3466eee9592a493fb4bc2902d5d`;
+- [x] comparison from the authorised head to the merge commit contains no changed files; merge history changed, tree contents did not;
+- [x] GitHub Actions CI #143 (`33889135839`) ran on the exact merged `main` commit and completed **PASS**;
+- [x] post-merge native Debug and Release passed;
+- [x] post-merge ASan+UBSan passed;
+- [x] post-merge no-exceptions/no-RTTI portability probe passed;
+- [x] post-merge M2/M3 browser Lab builds and native/WASM parity passed;
+- [x] Windows/macOS and Chromium/Firefox/WebKit/Edge final-platform evidence remains valid because it passed on the exact authorised head and the merge tree is identical;
+- [x] the normal `main` push correctly skipped manual hosted cross-platform/browser-smoke jobs by workflow design;
+- [x] no blocking defect remains.
 
 ## Final gate
 
-M3 engineering and acceptance gates are complete. M3 cannot be marked FINAL PASS until this documentation-only closure head receives fresh exact-head validation, the final exact candidate head is separately authorised, that exact head merges without undeclared tree changes, post-merge `main` verification passes, and M3 is explicitly frozen.
+M3 final requirements are all satisfied:
 
-## Current decision
+1. [x] M3.0–M3.14 implementation and acceptance gates complete;
+2. [x] B01–B18 human acceptance PASS;
+3. [x] final hostile review PASS with H1–H8 resolved;
+4. [x] exact final closure head passed CI, raw-head, hosted platform and browser gates;
+5. [x] protected exact-head merge was explicitly authorised and completed;
+6. [x] authorised head and merge commit have identical tree contents;
+7. [x] post-merge `main` CI #143 completed PASS on the exact merge commit;
+8. [x] M3 is declared FINAL PASS and frozen.
 
-**The Breath Pipe sound/model and B01–B18 human suite are accepted for M3. Do not add features or retune the synthesis unless a remaining gate demonstrates a specific defect.**
+## Final decision
+
+**M3 FINAL PASS. M3 is complete and frozen.**
+
+The Breath Pipe reference voice, its B01–B18 acceptance contract and the M3 evidence baseline are frozen. Future milestones may extend the engine through explicit decisions, but must not silently retune or reinterpret the accepted M3 model and contracts.
