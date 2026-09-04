@@ -30,7 +30,7 @@ M1 adds the first concrete musical resonator without changing the frozen Engine/
 
 M1 exact head `910616d0396ab516fa0b3272fe3067c23bffacb6` passed CI #60 and hostile review, then passed the human live gate through the later M2 Lab using the identical `FirstResonatorVoice` core. PR #4 merged to `main` as `54ebc45e4a0b2c96a7733ce99f49b3855acad9a7`; the merged tree is identical to the green exact-head tree.
 
-The M1 reference model is deliberately generic and replaceable. It is **not Breath Pipe**, not a Steampipe clone and not a rule that future Resonant Engine models must use tuned delays.
+The M1 reference model is deliberately generic and replaceable. It is **not Breath Pipe**, not a Steampipe clone and not a rule that future models must use tuned delays.
 
 ## M2 — Resonant Engine Lab
 
@@ -77,24 +77,15 @@ Open `http://127.0.0.1:8000/` and press **Start audio**.
 
 Canonical test/preset contracts live in `lab/contracts/`. Detailed definitions and evidence rules are in `docs/M2-RESONANT-ENGINE-LAB.md`.
 
-## Protected future Breath Pipe reference
+## M3 — Breath Pipe Reference Voice
 
-```text
-Pressure + Turbulence
-        ↓
-Exciter interaction
-        ↕
-Tuned resonator
-        ↺
-Active feedback
-        ↓
-Feedback filtering
-        ↓
-Nonlinearity
-        ↺
-```
+**Status: READY FOR PROTECTED MERGE AUTHORIZATION.**
 
-Required future continuum:
+M3 turns the frozen architecture, first resonator and Lab into the first fully expressive Resonant Engine reference voice.
+
+The implemented candidate is a bounded three-mode interacting modal model. It was selected over the M1 tuned-delay extension and a bounded scattering-waveguide prototype because it provides the required compact continuous pitch/register reorganisation with much smaller fixed resonator state. The selection remains Breath-Pipe-specific and does not make modal synthesis a generic Engine requirement.
+
+The Breath Pipe behaves as one continuously interacting energetic system rather than a set of pipe presets. The protected acceptance continuum is:
 
 ```text
 silence
@@ -109,6 +100,20 @@ silence
 → noise
 ```
 
+The candidate includes pressure/turbulence excitation, bidirectional returned-state interaction, active regeneration/self-sustain, in-loop nonlinearity, feedback spectral shaping, continuous modal overblow, model-level expressive controls, external-audio excitation, deterministic fixed-state processing, bounded Lab polyphony, B01–B18 acceptance programs and a separate Breath Pipe WASM Lab projection.
+
+The initial M3 operating envelope requires 44.1/48/96 kHz behaviour, native block-size coverage from 32–1024 frames plus validity at the M0 4096-frame maximum, C2–C6 stable-pitch acceptance, four-voice musical polyphony with eight-voice stress, no added host-visible buffering, explicit tuning/CPU gates, and an external-audio excitation proof.
+
+Routine native, sanitizer, portability and native/WASM validation is routed to the repository-scoped `oracle-resonant-engine-01` runner. Windows/macOS and four-browser realtime smoke remain deliberate final platform gates rather than per-commit hosted jobs.
+
+Human acceptance is B01–B18 covering silence, air, turbulence, pitch emergence, stable pipe, pressure/damping response, regeneration, self-sustain, overblow, forward/reverse continuum, hysteresis/recovery, expressive performance, pitch/register, aggressive/noise behaviour, polyphony, external excitation and extreme stability.
+
+Implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` passed the exact-head Linux/WASM suite, sanitizers and portability probe, Windows/macOS Debug+Release, and Chromium/Firefox/Playwright WebKit/Microsoft Edge realtime smoke + CPU gates. The final pre-merge hostile review is PASS. Only documentation-head validation, protected exact-head merge authorization, merge and post-merge freeze evidence remain.
+
+M3 remains **not a Steampipe clone, not a browser synth product, and not a requirement that future Resonant Engine models use the Breath Pipe topology**.
+
+Canonical M3 contract: `docs/M3-BREATH-PIPE.md`.
+
 ## Build and test
 
 ```sh
@@ -120,6 +125,13 @@ ctest --test-dir build -C Release --output-on-failure
 Offline render tools are deterministic regression evidence. They are not substitutes for human listening gates.
 
 ## Documentation
+
+M3:
+
+- `docs/M3-BREATH-PIPE.md`
+- `docs/M3-COMPLETION.md`
+- `docs/decisions/ADR-0025-M3-BREATH-PIPE-REFERENCE-VOICE.md`
+- `docs/decisions/ADR-0026-M3-BREATH-PIPE-TOPOLOGY.md`
 
 M2:
 

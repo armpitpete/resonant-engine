@@ -4,13 +4,36 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+
+  build-and-test-cross-platform:
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
         build_type: [Debug, Release]
     runs-on: ${{ matrix.os }}
     steps:
@@ -23,7 +46,8 @@ jobs:
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
 
   browser-lab-build-parity:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: mymindstorm/setup-emsdk@v14
@@ -60,15 +84,51 @@ jobs:
         run: |
           node hosts/browser/lab/parity.mjs build/resonant-lab/resonant-lab-node.mjs > build/resonant-lab/wasm-signature.json
           python3 tests/regression/compare_lab_signatures.py build/resonant-lab/native-signature.json build/resonant-lab/wasm-signature.json
-      - name: Upload Lab artifact
+      - name: Build M3 Breath Pipe Lab and Node parity module
+        env:
+          RESONANT_LAB_BUILD_NODE_PARITY: "1"
+          RESONANT_LAB_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash hosts/browser/lab/build-m3.sh
+      - name: Verify M3 Lab artifact and contracts
+        run: |
+          test -s build/resonant-m3-lab/index.html
+          test -s build/resonant-m3-lab/app.js
+          test -s build/resonant-m3-lab/worklet.js
+          test -s build/resonant-m3-lab/capture-worklet.js
+          test -s build/resonant-m3-lab/resonant-lab.js
+          test -s build/resonant-m3-lab/resonant-lab-node.mjs
+          test -s build/resonant-m3-lab/build-info.js
+          node --check build/resonant-m3-lab/app.js
+          node --check build/resonant-m3-lab/worklet.js
+          node --check hosts/browser/lab/m3-parity.mjs
+          node --check tests/browser/m3_lab_smoke.mjs
+          python3 -m json.tool lab/contracts/m3-presets.json >/dev/null
+          python3 -m json.tool lab/contracts/m3-acceptance-tests.json >/dev/null
+          grep -F "commit: '${{ github.event.pull_request.head.sha || github.sha }}'" build/resonant-m3-lab/build-info.js
+          grep -F "model: 'breath-pipe'" build/resonant-m3-lab/build-info.js
+      - name: Compare M3 native and WASM signatures
+        run: |
+          c++ -std=c++20 -O3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror -Icore/include -Ilab/include tools/breath_pipe_signature/main.cpp -o build/resonant-m3-lab/native-signature
+          build/resonant-m3-lab/native-signature > build/resonant-m3-lab/native-signature.json
+          node hosts/browser/lab/m3-parity.mjs build/resonant-m3-lab/resonant-lab-node.mjs > build/resonant-m3-lab/wasm-signature.json
+          python3 tests/regression/compare_lab_signatures.py build/resonant-m3-lab/native-signature.json build/resonant-m3-lab/wasm-signature.json
+      - name: Upload M2 Lab artifact
         uses: actions/upload-artifact@v4
         with:
           name: resonant-engine-lab-${{ github.sha }}
           if-no-files-found: error
           path: build/resonant-lab/
+      - name: Upload M3 Breath Pipe Lab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: resonant-engine-m3-lab-${{ github.sha }}
+          if-no-files-found: error
+          path: build/resonant-m3-lab/
 
   browser-lab-smoke:
+    if: github.event_name == 'workflow_dispatch'
     needs: browser-lab-build-parity
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -101,8 +161,45 @@ jobs:
           LAB_BROWSER: ${{ matrix.browser }}
         run: node tests/browser/lab_smoke.mjs build/resonant-lab
 
-  sanitizers:
+  browser-m3-lab-smoke:
+    if: github.event_name == 'workflow_dispatch'
+    needs: browser-lab-build-parity
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit, msedge]
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: resonant-engine-m3-lab-${{ github.sha }}
+          path: build/resonant-m3-lab
+      - name: Install pinned Playwright
+        run: npm install --no-save playwright@1.54.1
+      - name: Install browser engine
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start deterministic PulseAudio null sink
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=resonant_m3_ci sink_properties=device.description=Resonant_M3_CI >/dev/null
+          pactl set-default-sink resonant_m3_ci
+          pactl info
+          pactl list short sinks
+      - name: Smoke test M3 Breath Pipe realtime audio path and CPU budgets
+        env:
+          LAB_BROWSER: ${{ matrix.browser }}
+        run: node tests/browser/m3_lab_smoke.mjs build/resonant-m3-lab
+
+  sanitizers:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Configure ASan and UBSan
@@ -113,7 +210,8 @@ jobs:
         run: ctest --test-dir build-sanitize --output-on-failure
 
   no-exceptions-rtti-portability-probe:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Compile core headers without exceptions/RTTI assumptions

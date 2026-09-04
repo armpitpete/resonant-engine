@@ -1,0 +1,133 @@
+name: M3 Final Platform
+
+on:
+  pull_request:
+
+concurrency:
+  group: m3-final-platform-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  native-platform:
+    if: github.event.pull_request.head.ref == 'm3/breath-pipe-contract'
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        build_type: [Debug, Release]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build -DRESONANT_ENGINE_BUILD_TESTS=ON -DRESONANT_ENGINE_BUILD_RENDER=ON -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Build
+        shell: bash
+        run: cmake --build build --config ${{ matrix.build_type }}
+      - name: Test
+        shell: bash
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+
+  browser-build:
+    if: github.event.pull_request.head.ref == 'm3/breath-pipe-contract'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.6
+          actions-cache-folder: emsdk-cache
+      - name: Build exact-head M3 Lab and Node parity module
+        env:
+          RESONANT_LAB_BUILD_NODE_PARITY: "1"
+          RESONANT_LAB_SOURCE_SHA: ${{ env.SOURCE_SHA }}
+          RESONANT_LAB_TESTED_SHA: ${{ env.SOURCE_SHA }}
+        run: bash hosts/browser/lab/build-m3.sh
+      - name: Verify exact-head artifact and contracts
+        run: |
+          test -s build/resonant-m3-lab/index.html
+          test -s build/resonant-m3-lab/app.js
+          test -s build/resonant-m3-lab/worklet.js
+          test -s build/resonant-m3-lab/capture-worklet.js
+          test -s build/resonant-m3-lab/resonant-lab.js
+          test -s build/resonant-m3-lab/resonant-lab-node.mjs
+          test -s build/resonant-m3-lab/build-info.js
+          node --check build/resonant-m3-lab/app.js
+          node --check build/resonant-m3-lab/worklet.js
+          node --check hosts/browser/lab/m3-parity.mjs
+          node --check tests/browser/m3_lab_smoke.mjs
+          python3 -m json.tool lab/contracts/m3-presets.json >/dev/null
+          python3 -m json.tool lab/contracts/m3-acceptance-tests.json >/dev/null
+          grep -F "commit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+          grep -F "testedCommit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+          grep -F "model: 'breath-pipe'" build/resonant-m3-lab/build-info.js
+      - name: Compare M3 native and WASM signatures
+        run: |
+          c++ -std=c++20 -O3 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Werror -Icore/include -Ilab/include tools/breath_pipe_signature/main.cpp -o build/resonant-m3-lab/native-signature
+          build/resonant-m3-lab/native-signature > build/resonant-m3-lab/native-signature.json
+          node hosts/browser/lab/m3-parity.mjs build/resonant-m3-lab/resonant-lab-node.mjs > build/resonant-m3-lab/wasm-signature.json
+          python3 tests/regression/compare_lab_signatures.py build/resonant-m3-lab/native-signature.json build/resonant-m3-lab/wasm-signature.json
+      - name: Upload exact-head M3 Lab artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-final-platform-lab-${{ env.SOURCE_SHA }}
+          if-no-files-found: error
+          path: build/resonant-m3-lab/
+
+  browser-smoke:
+    if: github.event.pull_request.head.ref == 'm3/breath-pipe-contract'
+    needs: browser-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit, msedge]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: m3-final-platform-lab-${{ env.SOURCE_SHA }}
+          path: build/resonant-m3-lab
+      - name: Verify downloaded artifact provenance
+        run: |
+          grep -F "commit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+          grep -F "testedCommit: '$SOURCE_SHA'" build/resonant-m3-lab/build-info.js
+      - name: Install pinned Playwright
+        run: npm install --no-save playwright@1.54.1
+      - name: Install browser engine
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start deterministic PulseAudio null sink
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=resonant_m3_ci sink_properties=device.description=Resonant_M3_CI >/dev/null
+          pactl set-default-sink resonant_m3_ci
+          pactl info
+          pactl list short sinks
+      - name: Smoke test M3 realtime audio path and CPU budgets
+        env:
+          LAB_BROWSER: ${{ matrix.browser }}
+        run: node tests/browser/m3_lab_smoke.mjs build/resonant-m3-lab
