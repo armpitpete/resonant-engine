@@ -9,6 +9,23 @@ set(RESONANT_VST3_SOURCES
 
 smtg_add_vst3plugin(ResonantEngineBreathPipe ${RESONANT_VST3_SOURCES})
 
+if(SMTG_MAC)
+    target_sources(ResonantEngineBreathPipe
+        PRIVATE
+            ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/macmain.cpp
+    )
+elseif(SMTG_WIN)
+    target_sources(ResonantEngineBreathPipe
+        PRIVATE
+            ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/dllmain.cpp
+    )
+elseif(SMTG_LINUX)
+    target_sources(ResonantEngineBreathPipe
+        PRIVATE
+            ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/linuxmain.cpp
+    )
+endif()
+
 target_link_libraries(ResonantEngineBreathPipe
     PRIVATE
         ResonantEngine::core
