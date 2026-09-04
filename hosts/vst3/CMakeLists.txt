@@ -1,5 +1,6 @@
 set(RESONANT_VST3_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/CoreAdapter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/EventTranslator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Controller.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/PluginFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/PluginIds.hpp
