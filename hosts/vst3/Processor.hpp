@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hosts/vst3/CoreAdapter.hpp"
+#include "hosts/vst3/EventTranslator.hpp"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
 namespace resonant::vst3 {
@@ -23,7 +24,14 @@ public:
         Steinberg::int32 symbolic_sample_size) override;
 
 private:
+    [[nodiscard]] bool translateEvents(Steinberg::Vst::ProcessData& data,
+                                       std::uint32_t total_frames) noexcept;
+    [[nodiscard]] bool buildChunkEvents(std::uint32_t start_frame,
+                                        std::uint32_t frames) noexcept;
+
     BreathPipeCoreAdapter adapter_{};
+    HostEventTranslator event_translator_{};
+    FixedEventBuffer<kMaxEventsPerBlock> chunk_events_{};
 };
 
 } // namespace resonant::vst3
