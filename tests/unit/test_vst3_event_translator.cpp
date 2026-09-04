@@ -149,6 +149,7 @@ void testMalformedAndOverflowPolicy() {
     check(!translator.noteOn(64U, 60, 0.0F, 0.5F, 1),
           "out-of-range offset rejected");
     check(!translator.valid(), "malformed block marked invalid");
+    translator.abortBlock();
 
     translator.beginBlock(64U);
     check(translator.noteOn(32U, 60, 0.0F, 0.5F, 1),
@@ -156,6 +157,7 @@ void testMalformedAndOverflowPolicy() {
     check(!translator.noteOff(16U, 60, 0.0F, 1),
           "decreasing sample offset rejected");
     check(!translator.valid(), "out-of-order block marked invalid");
+    translator.abortBlock();
 
     translator.beginBlock(64U);
     check(translator.noteOn(8U, 64, 0.0F, 0.6F, 11),
@@ -174,6 +176,7 @@ void testMalformedAndOverflowPolicy() {
               std::numeric_limits<float>::quiet_NaN(),
               1),
           "non-finite velocity rejected");
+    translator.abortBlock();
 
     translator.beginBlock(4096U);
     bool overflow_seen = false;
