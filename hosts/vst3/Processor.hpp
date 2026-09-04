@@ -26,9 +26,6 @@ public:
 private:
     [[nodiscard]] bool translateEvents(Steinberg::Vst::ProcessData& data,
                                        std::uint32_t total_frames) noexcept;
-    [[nodiscard]] bool buildChunkEvents(std::uint32_t start_frame,
-                                        std::uint32_t frames) noexcept;
-
     BreathPipeCoreAdapter adapter_{};
     HostEventTranslator event_translator_{};
     FixedEventBuffer<kMaxEventsPerBlock> chunk_events_{};
