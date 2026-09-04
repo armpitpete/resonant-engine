@@ -1,6 +1,6 @@
 # M3 — Breath Pipe Reference Voice Completion
 
-Status: **CLOSURE CANDIDATE — M3.0–M3.13 COMPLETE; PLATFORM/FINAL CLOSURE GATES OPEN**
+Status: **READY FOR PROTECTED MERGE AUTHORIZATION — M3.0–M3.14 COMPLETE; FINAL HOSTILE REVIEW PASS; MERGE/POST-MERGE FREEZE OPEN**
 
 Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 
@@ -20,8 +20,8 @@ Canonical milestone contract: `docs/M3-BREATH-PIPE.md`.
 - [x] M3.11 — Polyphony, Voice Independence & CPU Scaling
 - [x] M3.12 — External Excitation Proof
 - [x] M3.13 — Human B-Series Acceptance Suite — PASS
-- [ ] M3.14 — Portability, Performance & Evidence — exact-head Linux/WASM evidence PASS; hosted platform allocation blocked
-- [ ] M3.15 — Hostile Review, Completion & Freeze
+- [x] M3.14 — Portability, Performance & Evidence — PASS
+- [ ] M3.15 — Hostile Review, Completion & Freeze — final hostile review PASS; protected merge/post-merge freeze remain
 
 ## Exact-head automated evidence
 
@@ -48,6 +48,17 @@ After the human listener reported low volume, the M3 Lab audition monitor alone 
 - M3 WASM build, exact artifact provenance and native/WASM parity — PASS.
 
 This proves the post-monitor head without changing the approved Breath Pipe synthesis implementation.
+
+The final implementation candidate head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` then passed:
+
+- `PR Exact Head` run #6 (`33791246658`) — all five raw-head jobs PASS;
+- CI #141 (`33791246636`) — PASS;
+- native Debug and Release;
+- ASan + UBSan;
+- no-exceptions/no-RTTI portability probe;
+- M3 WASM build, exact artifact provenance and native/WASM parity.
+
+This establishes `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` as the accepted exact implementation head before documentation-only closure reconciliation.
 
 ## Human B01–B18 evidence
 
@@ -99,28 +110,33 @@ That contract passed on exact-head runs #3 and #5. The browser fundamental displ
 
 ## M3.14 hosted platform gate
 
-Required final hosted evidence remains:
+**PASS.**
 
-- Windows MSVC Debug/Release;
-- macOS Clang Debug/Release;
-- Chromium realtime M3 Lab smoke and CPU budget;
-- Firefox realtime M3 Lab smoke and CPU budget;
-- Playwright WebKit realtime M3 Lab smoke and CPU budget;
-- Microsoft Edge realtime M3 Lab smoke and CPU budget.
+The earlier zero-step hosted failures were runner-allocation failures rather than Resonant Engine failures. After hosted Actions capacity was restored, `M3 Final Platform` run #3 (`33791246542`) was rerun against exact implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` and completed successfully.
 
-Two `M3 Final Platform` attempts requested `ubuntu-latest`, `windows-latest` and `macos-latest`. Every runnable hosted job failed before step 1 with `runner_id: 0`, no runner name and no workflow steps; browser smoke then skipped because its build prerequisite never ran.
+Final hosted evidence:
 
-This is not a demonstrated Resonant Engine/platform build failure. It is an **external GitHub-hosted runner allocation blocker**. M3.14 remains open until hosted allocation is restored and those jobs actually execute and pass.
+- Windows MSVC Debug — PASS;
+- Windows MSVC Release — PASS;
+- macOS Clang Debug — PASS;
+- macOS Clang Release — PASS;
+- exact-head M3 browser build, artifact provenance and native/WASM parity — PASS;
+- Chromium realtime M3 Lab smoke and CPU budget — PASS;
+- Firefox realtime M3 Lab smoke and CPU budget — PASS;
+- Playwright WebKit realtime M3 Lab smoke and CPU budget — PASS;
+- Microsoft Edge realtime M3 Lab smoke and CPU budget — PASS.
 
 No Safari claim is implied by Playwright WebKit.
 
 ## Hostile review state
 
-The pre-closure hostile review has found no DSP/architecture blocker. Closure defects H1–H7 have concrete resolutions; H8 is the still-open hosted-runner allocation blocker. A final hostile review is required only after the hosted platform evidence is complete.
+**FINAL PRE-MERGE HOSTILE REVIEW: PASS** on implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`.
+
+No DSP, architecture, realtime, provenance, human-acceptance or platform blocker remains. H1–H8 are resolved. The only branch change after that review is this documentation-only closure reconciliation; it must receive fresh exact-head validation before the protected merge gate is opened.
 
 ## Final gate
 
-M3 cannot be marked FINAL PASS until the canonical completion gate is satisfied, the final exact candidate head is frozen and separately authorised, that exact head merges without undeclared tree changes, post-merge `main` verification passes, and M3 is explicitly frozen.
+M3 engineering and acceptance gates are complete. M3 cannot be marked FINAL PASS until this documentation-only closure head receives fresh exact-head validation, the final exact candidate head is separately authorised, that exact head merges without undeclared tree changes, post-merge `main` verification passes, and M3 is explicitly frozen.
 
 ## Current decision
 

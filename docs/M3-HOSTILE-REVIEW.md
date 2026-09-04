@@ -1,10 +1,10 @@
 # M3 — Pre-Closure Hostile Review
 
-Status: **PRE-CLOSURE REVIEW — FINAL REVIEW STILL REQUIRED**
+Status: **FINAL PRE-MERGE HOSTILE REVIEW — PASS**
 
-Candidate reviewed initially: PR #7 head `714df0b758ff1f92f1590c69169c293b3d30bcea`, with closure fixes continuing on the same branch.
+Final implementation candidate reviewed: PR #7 head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`. Earlier findings are retained below as the audit trail that led to this final review.
 
-This review is deliberately adversarial. It does not declare M3 complete and does not substitute for B01–B18 human acceptance or the final platform gates.
+This review is deliberately adversarial. Human B01–B18 acceptance and the final platform matrix have independently passed; this review tests whether any remaining implementation, architecture, evidence or closure defect blocks the protected merge gate.
 
 ## Findings
 
@@ -90,19 +90,32 @@ Two final-platform attempts requested `ubuntu-latest`, `windows-latest` and `mac
 
 This is not evidence of a CMake, compiler, Emscripten, browser or DSP failure because none of those steps executed. It is a real M3.14 closure blocker until GitHub-hosted runner allocation is restored and the required Windows/macOS/browser jobs actually run.
 
-Resolution state: **OPEN — external hosted-runner allocation must be restored and the platform workflow rerun.**
+Resolution state: **RESOLVED.** Hosted Actions capacity was restored and `M3 Final Platform` run #3 (`33791246542`) completed successfully on exact implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`, including Windows Debug/Release, macOS Debug/Release, exact-head browser build/parity, and Chromium/Firefox/WebKit/Edge realtime smoke + CPU gates.
+
+## Final hostile-review result
+
+**PASS — no blocking defect found.**
+
+At `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`:
+
+- B01–B18 human acceptance is PASS, including the corrected audition-monitor confirmation;
+- `PR Exact Head` run #6 (`33791246658`) is PASS;
+- CI #141 (`33791246636`) is PASS;
+- `M3 Final Platform` run #3 (`33791246542`) is PASS;
+- Windows and macOS native Debug/Release all pass;
+- Chromium, Firefox, Playwright WebKit and Microsoft Edge realtime smoke/CPU gates all pass;
+- native/WASM parity, sanitizers and no-exceptions/no-RTTI portability all pass;
+- no architecture-boundary, energetic-model, boundedness, recovery, provenance or acceptance contradiction remains.
+
+The implementation tree is therefore accepted for the M3 protected merge gate. Do not add features or retune the Breath Pipe during closure.
 
 ## Gates intentionally still open
 
-- final human confirmation that the corrected audition monitor level is satisfactory without changing the accepted sound;
-- Windows MSVC Debug/Release;
-- macOS Clang Debug/Release;
-- Chromium, Firefox, Playwright WebKit and Microsoft Edge realtime M3 Lab smoke/CPU gates;
-- final hostile review after all acceptance-driven changes and platform evidence;
+- fresh exact-head validation of the documentation-only closure reconciliation commit;
 - exact final-head merge authorisation;
 - merge and post-merge `main` proof;
 - FINAL PASS documentation and freeze.
 
 ## Final-review rule
 
-Repeat the hostile review on the final frozen candidate head after human and platform acceptance. Any code or contract change made in response to those gates invalidates this review as the final M3.15 review.
+This is the final hostile review for implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936`. The following closure commit is restricted to `docs/M3-COMPLETION.md`, `docs/M3-HOSTILE-REVIEW.md` and `README.md`. Any DSP, contract, test, workflow or other implementation change after this point invalidates the review and reopens M3.15.

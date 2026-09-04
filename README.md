@@ -79,7 +79,7 @@ Canonical test/preset contracts live in `lab/contracts/`. Detailed definitions a
 
 ## M3 — Breath Pipe Reference Voice
 
-**Status: IMPLEMENTATION CANDIDATE — FINAL VALIDATION IN PROGRESS.**
+**Status: READY FOR PROTECTED MERGE AUTHORIZATION.**
 
 M3 turns the frozen architecture, first resonator and Lab into the first fully expressive Resonant Engine reference voice.
 
@@ -107,6 +107,8 @@ The initial M3 operating envelope requires 44.1/48/96 kHz behaviour, native bloc
 Routine native, sanitizer, portability and native/WASM validation is routed to the repository-scoped `oracle-resonant-engine-01` runner. Windows/macOS and four-browser realtime smoke remain deliberate final platform gates rather than per-commit hosted jobs.
 
 Human acceptance is B01–B18 covering silence, air, turbulence, pitch emergence, stable pipe, pressure/damping response, regeneration, self-sustain, overblow, forward/reverse continuum, hysteresis/recovery, expressive performance, pitch/register, aggressive/noise behaviour, polyphony, external excitation and extreme stability.
+
+Implementation head `fb0375bf6e8899c3b3d4f6c8221d8ce3d150d936` passed the exact-head Linux/WASM suite, sanitizers and portability probe, Windows/macOS Debug+Release, and Chromium/Firefox/Playwright WebKit/Microsoft Edge realtime smoke + CPU gates. The final pre-merge hostile review is PASS. Only documentation-head validation, protected exact-head merge authorization, merge and post-merge freeze evidence remain.
 
 M3 remains **not a Steampipe clone, not a browser synth product, and not a requirement that future Resonant Engine models use the Breath Pipe topology**.
 
