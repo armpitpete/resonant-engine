@@ -114,6 +114,17 @@ M3 remains **not a Steampipe clone, not a browser synth product, and not a requi
 
 Canonical M3 contract: `docs/M3-BREATH-PIPE.md`.
 
+
+## M4 — DAW/VST3 Reference Host
+
+**Status: DESIGN CANDIDATE.**
+
+M4 is the first real DAW-host proof for the frozen Resonant Engine. It will wrap the same `resonant_core` and M3 Breath Pipe Reference Voice in a thin VST3 instrument adapter, using the Steinberg VST3 SDK directly and keeping VST3/JUCE/DAW types outside the core.
+
+M4 focuses on plugin lifecycle, audio/event translation, sample-accurate automation, portable state recall, optional external excitation, realtime boundedness, native-core/VST3 parity, Steinberg validator evidence and one real-DAW human acceptance gate. It does not add a custom GUI, a new synthesis model, a preset browser, or retune the frozen M3 voice.
+
+Canonical M4 contract: `docs/M4-DAW-VST3-HOST.md`.
+
 ## Build and test
 
 ```sh
