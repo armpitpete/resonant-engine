@@ -38,6 +38,15 @@ target_include_directories(ResonantEngineBreathPipe
         ${PROJECT_SOURCE_DIR}
 )
 
+# The Steinberg SDK is a pinned third-party dependency. Keep our host wrapper
+# warnings-as-errors, but do not promote diagnostics originating in SDK headers
+# (for example GCC -Wshadow in pluginterfaces/base/funknown.h) into project
+# build failures.
+target_include_directories(ResonantEngineBreathPipe
+    SYSTEM BEFORE PRIVATE
+        ${vst3sdk_SOURCE_DIR}
+)
+
 target_compile_features(ResonantEngineBreathPipe PRIVATE cxx_std_20)
 resonant_apply_warnings(ResonantEngineBreathPipe)
 
