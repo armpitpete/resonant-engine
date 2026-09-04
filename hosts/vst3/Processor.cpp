@@ -72,6 +72,11 @@ Steinberg::tresult PLUGIN_API Processor::canProcessSampleSize(
 bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
                                 std::uint32_t total_frames) noexcept {
     event_translator_.beginBlock(total_frames);
+    const auto reject_block = [&]() noexcept {
+        event_translator_.abortBlock();
+        return false;
+    };
+
     if (data.inputEvents == nullptr) {
         return true;
     }
@@ -79,7 +84,7 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
     const auto event_count = data.inputEvents->getEventCount();
     if (event_count < 0 ||
         event_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
-        return false;
+        return reject_block();
     }
 
     for (Steinberg::int32 index = 0; index < event_count; ++index) {
@@ -88,7 +93,7 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
             host_event.busIndex != 0 ||
             host_event.sampleOffset < 0 ||
             host_event.sampleOffset >= data.numSamples) {
-            return false;
+            return reject_block();
         }
 
         const auto sample_offset =
@@ -102,7 +107,7 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
                     host_event.noteOn.tuning,
                     host_event.noteOn.velocity,
                     host_event.noteOn.noteId)) {
-                return false;
+                return reject_block();
             }
             break;
 
@@ -112,7 +117,7 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
                     host_event.noteOff.pitch,
                     host_event.noteOff.velocity,
                     host_event.noteOff.noteId)) {
-                return false;
+                return reject_block();
             }
             break;
 
@@ -122,7 +127,18 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
                     host_event.polyPressure.pitch,
                     host_event.polyPressure.pressure,
                     host_event.polyPressure.noteId)) {
-                return false;
+                return reject_block();
+            }
+            break;
+
+        case Steinberg::Vst::Event::kNoteExpressionValueEvent:
+            if (host_event.noteExpressionValue.typeId ==
+                    Steinberg::Vst::kTuningTypeID &&
+                !event_translator_.noteExpressionTuning(
+                    sample_offset,
+                    host_event.noteExpressionValue.value,
+                    host_event.noteExpressionValue.noteId)) {
+                return reject_block();
             }
             break;
 
@@ -131,7 +147,10 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
         }
     }
 
-    return event_translator_.valid();
+    if (!event_translator_.valid()) {
+        return reject_block();
+    }
+    return true;
 }
 
 bool Processor::buildChunkEvents(std::uint32_t start_frame,
