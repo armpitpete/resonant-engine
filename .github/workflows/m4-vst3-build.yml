@@ -45,3 +45,17 @@ jobs:
 
       - name: Build VST3 host
         run: cmake --build build-vst3 --config ${{ matrix.config }} --target ResonantEngineBreathPipe --parallel 2
+
+      - name: Build Steinberg validator
+        run: cmake --build build-vst3 --config ${{ matrix.config }} --target validator --parallel 2
+
+      - name: Validate VST3 host
+        shell: bash
+        run: |
+          validator="build-vst3/bin/${{ matrix.config }}/validator"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            validator="${validator}.exe"
+          fi
+          plugin="build-vst3/VST3/${{ matrix.config }}/ResonantEngineBreathPipe.vst3"
+          "${validator}" "${plugin}" | tee validator.log
+          grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
