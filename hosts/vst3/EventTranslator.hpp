@@ -61,9 +61,9 @@ public:
         }
 
         (void)events_.push(
-            {sample_offset, EventType::Pitch, 0U, note_id, pitch_hz, 0.0F});
+            {sample_offset, EventType::Pitch, 0U, kNoNoteId, pitch_hz, 0.0F});
         (void)events_.push(
-            {sample_offset, EventType::Pressure, 0U, note_id, velocity, 0.0F});
+            {sample_offset, EventType::Pressure, 0U, kNoNoteId, velocity, 0.0F});
         (void)events_.push(
             {sample_offset, EventType::NoteOn, 0U, note_id, velocity, 0.0F});
 
@@ -100,7 +100,7 @@ public:
         }
 
         (void)events_.push(
-            {sample_offset, EventType::Pitch, 0U, note_id, pitch_hz, 0.0F});
+            {sample_offset, EventType::Pitch, 0U, kNoNoteId, pitch_hz, 0.0F});
         return true;
     }
 
@@ -124,7 +124,7 @@ public:
             {sample_offset, EventType::NoteOff, 0U, note_id, release_velocity, 0.0F});
         if (releases_active) {
             (void)events_.push(
-                {sample_offset, EventType::Pressure, 0U, note_id, 0.0F, 0.0F});
+                {sample_offset, EventType::Pressure, 0U, kNoNoteId, 0.0F, 0.0F});
             active_ = false;
             active_note_id_ = kNoNoteId;
             active_pitch_ = -1;
@@ -152,7 +152,7 @@ public:
         }
 
         (void)events_.push(
-            {sample_offset, EventType::Pressure, 0U, note_id, pressure, 0.0F});
+            {sample_offset, EventType::Pressure, 0U, kNoNoteId, pressure, 0.0F});
         return true;
     }
 
