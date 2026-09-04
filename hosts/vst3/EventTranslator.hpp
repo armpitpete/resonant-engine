@@ -19,6 +19,11 @@ public:
         active_ = false;
         active_note_id_ = kNoNoteId;
         active_pitch_ = -1;
+        active_base_pitch_hz_ = 0.0F;
+        checkpoint_active_ = false;
+        checkpoint_note_id_ = kNoNoteId;
+        checkpoint_pitch_ = -1;
+        checkpoint_base_pitch_hz_ = 0.0F;
         have_last_offset_ = false;
         last_offset_ = 0U;
     }
@@ -28,6 +33,10 @@ public:
         frames_ = frames;
         malformed_ = false;
         overflowed_ = false;
+        checkpoint_active_ = active_;
+        checkpoint_note_id_ = active_note_id_;
+        checkpoint_pitch_ = active_pitch_;
+        checkpoint_base_pitch_hz_ = active_base_pitch_hz_;
         have_last_offset_ = false;
         last_offset_ = 0U;
     }
@@ -61,6 +70,37 @@ public:
         active_ = true;
         active_note_id_ = note_id;
         active_pitch_ = pitch;
+        active_base_pitch_hz_ = pitch_hz;
+        return true;
+    }
+
+    [[nodiscard]] bool noteExpressionTuning(std::uint32_t sample_offset,
+                                            double normalized_value,
+                                            std::int32_t host_note_id) noexcept {
+        if (!acceptOffset(sample_offset) || !std::isfinite(normalized_value) ||
+            normalized_value < 0.0 || normalized_value > 1.0) {
+            malformed_ = true;
+            return false;
+        }
+
+        const auto note_id = mapNoteId(host_note_id);
+        if (!matchesActive(note_id, active_pitch_) || active_base_pitch_hz_ <= 0.0F) {
+            return true;
+        }
+        if (!reserve(1U)) {
+            return false;
+        }
+
+        const auto semitones = 240.0 * (normalized_value - 0.5);
+        const auto pitch_hz = static_cast<Sample>(
+            static_cast<double>(active_base_pitch_hz_) * std::exp2(semitones / 12.0));
+        if (!std::isfinite(pitch_hz)) {
+            malformed_ = true;
+            return false;
+        }
+
+        (void)events_.push(
+            {sample_offset, EventType::Pitch, 0U, note_id, pitch_hz, 0.0F});
         return true;
     }
 
@@ -88,6 +128,7 @@ public:
             active_ = false;
             active_note_id_ = kNoNoteId;
             active_pitch_ = -1;
+            active_base_pitch_hz_ = 0.0F;
         }
         return true;
     }
@@ -117,6 +158,18 @@ public:
 
     [[nodiscard]] std::span<const Event> events() const noexcept {
         return events_.span();
+    }
+
+    void abortBlock() noexcept {
+        events_.clear();
+        malformed_ = false;
+        overflowed_ = false;
+        active_ = checkpoint_active_;
+        active_note_id_ = checkpoint_note_id_;
+        active_pitch_ = checkpoint_pitch_;
+        active_base_pitch_hz_ = checkpoint_base_pitch_hz_;
+        have_last_offset_ = false;
+        last_offset_ = 0U;
     }
 
     [[nodiscard]] bool valid() const noexcept {
@@ -191,6 +244,11 @@ private:
     bool active_{false};
     NoteId active_note_id_{kNoNoteId};
     std::int32_t active_pitch_{-1};
+    Sample active_base_pitch_hz_{0.0F};
+    bool checkpoint_active_{false};
+    NoteId checkpoint_note_id_{kNoNoteId};
+    std::int32_t checkpoint_pitch_{-1};
+    Sample checkpoint_base_pitch_hz_{0.0F};
     bool have_last_offset_{false};
     std::uint32_t last_offset_{0U};
 };
