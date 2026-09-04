@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.3 IMPLEMENTATION CANDIDATE — VALIDATION OPEN**
+Status: **M4.0–M4.3 COMPLETE — FINAL SLICE VALIDATION IN PROGRESS**
 
 ## Goal
 
@@ -52,31 +52,31 @@ M4 must not change these accepted rules:
 
 ### M4.0 — Contract and dependency boundary
 
-- [ ] freeze this milestone contract;
-- [ ] pin the VST3 SDK revision used by CI/builds;
-- [ ] document SDK licence/trademark obligations;
-- [ ] enforce that VST3 headers/types do not enter `resonant_core`.
+- [x] freeze this milestone contract;
+- [x] pin the VST3 SDK revision used by CI/builds;
+- [x] document SDK licence/trademark obligations;
+- [x] enforce that VST3 headers/types do not enter `resonant_core`.
 
 ### M4.1 — VST3 component skeleton
 
-- [ ] build a VST3 instrument bundle;
-- [ ] processor/controller/component registration;
-- [ ] stereo output bus;
-- [ ] optional audio-input bus for external excitation where host capabilities permit;
-- [ ] no custom GUI requirement.
+- [x] build a VST3 instrument bundle;
+- [x] processor/controller/component registration;
+- [x] stereo output bus;
+- [x] external-audio input is explicitly deferred to M4.7; no M4.1 input bus is required;
+- [x] no custom GUI requirement.
 
 ### M4.2 — Processing lifecycle
 
-- [ ] map VST3 setup/activation/reset to portable core lifecycle;
-- [ ] sample rates 44.1/48/96 kHz;
-- [ ] bounded variable host block sizes within the M0 contract;
-- [ ] no added host-visible buffering.
+- [x] map VST3 setup/activation/reset to portable core lifecycle;
+- [x] sample rates 44.1/48/96 kHz;
+- [x] host blocks larger than the 4096-frame core maximum are chunked into bounded core calls without making host block size feedback delay;
+- [x] no added host-visible buffering.
 
 ### M4.3 — Audio-buffer translation
 
-- [ ] translate VST3 float32 buffers into caller-owned core views;
-- [ ] safe silence/fail-closed behaviour for malformed host buffers;
-- [ ] prove no Host DSP duplication.
+- [x] translate VST3 float32 buffers into caller-owned core views;
+- [x] safe silence/fail-closed behaviour for malformed host buffers;
+- [x] prove no Host DSP duplication.
 
 ### M4.4 — Note and expression translation
 
@@ -200,17 +200,40 @@ M4 passes only when a real DAW can host the same accepted Breath Pipe system thr
 
 ## M4.0–M4.3 implementation evidence
 
-Implementation slice head will be validated through two independent layers:
+The accepted implementation evidence head before this reconciliation is
+`61b842d00ec910c4404d4df2b4caf17ceb7358a3`.
 
-1. routine SDK-free Oracle tests:
-   - `resonant_vst3_adapter_tests`;
-   - `resonant_vst3_dependency_boundary`;
-   - the existing full native/sanitizer/portability suite;
-2. branch-scoped hosted `M4 VST3 Build` jobs:
-   - Windows MSVC Debug/Release;
-   - macOS Clang Debug/Release;
-   - exact PR-head verification before build.
+Hosted `M4 VST3 Build` run #9 (`33900470367`) passed on that exact head:
+
+- Windows MSVC Debug — PASS;
+- Windows MSVC Release — PASS;
+- macOS Clang Debug — PASS;
+- macOS Clang Release — PASS;
+- raw PR-head verification — PASS in every job;
+- Steinberg validator — PASS with `0 tests failed` in every job.
+
+The Windows validator is run explicitly rather than as an MSBuild post-build hook. Steinberg intentionally emits error-labelled diagnostics when probing unsupported sample rates even when its aggregate result is PASS; Visual Studio 18 treats those text lines as custom-build errors despite validator exit status 0. The explicit CI step therefore requires both a zero validator exit and the aggregate `0 tests failed` summary.
+
+Routine Oracle CI #155 Release on the same implementation head passed all 35 CTests, including:
+
+- `resonant_vst3_adapter_tests` — PASS;
+- `resonant_vst3_dependency_boundary` — PASS.
+
+The adapter proof demonstrates exact reset silence, real output from the same frozen `BreathPipeVoice`, stereo translation and bounded core-block rejection. The hosted validator additionally proves DAW-facing lifecycle and oversized-host-block chunking. This reconciliation adds explicit 44.1/48/96 kHz adapter preparation coverage.
 
 The VST3 SDK is pinned to reproducible GitHub tag `v3.8.0_build_66`, superproject commit `9fad9770f2ae8542ab1a548a68c1ad1ac690abe0`. The Developer Portal lists VST 3.8.1, but no matching reproducible GitHub tag was available when M4.0 was established; M4 deliberately does not follow `master`.
 
-M4.0–M4.3 checkboxes remain open until both Oracle and hosted platform builds pass on the same implementation head.
+### M4.0–M4.3 hostile review
+
+**PASS at implementation level.**
+
+- no `core/**` source file changed in this slice;
+- VST3 SDK types exist only under the Host/build layer;
+- the SDK-free `BreathPipeCoreAdapter` composes `Engine<BreathPipeVoice>` instead of copying synthesis code;
+- no host-specific smoothing, turbulence, feedback or resonator algorithm was added;
+- oversized host blocks are processed as consecutive legal core calls, not buffered or converted into block-rate feedback;
+- note/event translation remains deliberately unimplemented until M4.4 and is not falsely claimed by this slice;
+- parameters/state/external excitation remain deliberately open for M4.5–M4.7;
+- no custom GUI or JUCE dependency was introduced.
+
+This documentation/test/workflow reconciliation must receive fresh exact-head Oracle and hosted VST3 validation before PR #10 can leave draft.

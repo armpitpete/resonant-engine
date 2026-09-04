@@ -111,4 +111,4 @@ Later milestone decisions extend the frozen M0 set. They do not silently rewrite
 
 **File:** `ADR-0027-M4-DIRECT-VST3-HOST.md`  
 **Decision:** implement the first DAW reference host directly against the MIT-licensed Steinberg VST3 SDK, keep all VST3 types outside `resonant_core`, use host-generic parameter UI for M4, and require a portable state contract plus native-core/VST3 parity before host acceptance.  
-**Scope:** proposed for M4; becomes accepted only after executable dependency-boundary and wrapper evidence.
+**Scope:** accepted for M4 on executable wrapper, validator and dependency-boundary evidence; later M4 sections remain open.

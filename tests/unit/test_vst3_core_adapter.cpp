@@ -22,6 +22,14 @@ void check(bool condition, std::string_view name) {
 void testPrepareAndSilence() {
     resonant::vst3::BreathPipeCoreAdapter adapter;
     check(!adapter.prepare(1.0, 128U), "reject invalid sample rate");
+
+    resonant::vst3::BreathPipeCoreAdapter rate_44k1;
+    resonant::vst3::BreathPipeCoreAdapter rate_48k;
+    resonant::vst3::BreathPipeCoreAdapter rate_96k;
+    check(rate_44k1.prepare(44'100.0, 128U, 0U, 2U), "prepare 44.1 kHz");
+    check(rate_48k.prepare(48'000.0, 128U, 0U, 2U), "prepare 48 kHz");
+    check(rate_96k.prepare(96'000.0, 128U, 0U, 2U), "prepare 96 kHz");
+
     check(adapter.prepare(48'000.0, 128U, 0U, 2U), "prepare VST3 core adapter");
     check(adapter.spec().output_channels == 2U, "adapter owns stereo output spec");
 

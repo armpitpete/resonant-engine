@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "CMakeLists.txt"
+      - "core/**"
       - "cmake/vst3_sdk.cmake"
+      - "cmake/check_vst3_boundary.cmake"
       - "hosts/vst3/**"
       - ".github/workflows/m4-vst3-build.yml"
   workflow_dispatch:

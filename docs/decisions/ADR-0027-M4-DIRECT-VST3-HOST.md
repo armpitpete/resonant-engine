@@ -1,6 +1,6 @@
 # ADR-0027 — M4 Direct VST3 Reference Host
 
-Status: **PROPOSED FOR M4**
+Status: **ACCEPTED FOR M4**
 
 ## Context
 
@@ -51,4 +51,6 @@ Rejected because UI does not prove the host/core translation contract and would 
 
 ## Acceptance
 
-This ADR becomes accepted for M4 when the direct-SDK wrapper builds and the dependency/boundary tests demonstrate that no VST3 type or synthesis implementation leaked into `resonant_core`.
+**ACCEPTED FOR M4.**
+
+The acceptance condition is satisfied on implementation head `61b842d00ec910c4404d4df2b4caf17ceb7358a3`: Windows/macOS Debug+Release direct-SDK builds and Steinberg validator pass in M4 VST3 Build #9, while Oracle CI #155 Release passes the SDK-free adapter and VST3/core dependency-boundary tests. No `core/**` implementation file changed in the slice.
