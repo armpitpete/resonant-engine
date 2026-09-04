@@ -47,11 +47,21 @@ void testNoteOnAndIdentity() {
           "active note identity retained across blocks");
 }
 
-void testReleaseAndPressure() {
+void testReleasePressureAndTuningExpression() {
     resonant::vst3::HostEventTranslator translator;
     translator.beginBlock(128U);
     check(translator.noteOn(8U, 60, 0.0F, 0.5F, 7),
           "prepare active note");
+
+    translator.beginBlock(128U);
+    check(translator.noteExpressionTuning(12U, 0.55, 7),
+          "matching tuning expression translates");
+    events = translator.events();
+    check(events.size() == 1U &&
+              events[0].type == resonant::EventType::Pitch &&
+              events[0].note_id == 8U &&
+              events[0].value > 261.6F,
+          "per-note tuning maps to portable pitch");
 
     translator.beginBlock(128U);
     check(translator.polyPressure(16U, 60, 0.9F, 7),
@@ -119,6 +129,15 @@ void testMalformedAndOverflowPolicy() {
     check(!translator.valid(), "out-of-order block marked invalid");
 
     translator.beginBlock(64U);
+    check(translator.noteOn(8U, 64, 0.0F, 0.6F, 11),
+          "valid state mutation precedes malformed event");
+    check(!translator.noteOff(4U, 64, 0.0F, 11),
+          "later malformed event rejects block");
+    translator.abortBlock();
+    check(!translator.hasActiveNote(),
+          "aborted block rolls active-note state back");
+
+    translator.beginBlock(64U);
     check(!translator.noteOn(
               0U,
               60,
@@ -148,7 +167,7 @@ void testMalformedAndOverflowPolicy() {
 
 int main() {
     testNoteOnAndIdentity();
-    testReleaseAndPressure();
+    testReleasePressureAndTuningExpression();
     testOrderingAndFallbackIdentity();
     testMalformedAndOverflowPolicy();
 
