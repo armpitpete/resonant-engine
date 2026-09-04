@@ -98,10 +98,17 @@ Later milestone decisions extend the frozen M0 set. They do not silently rewrite
 
 **File:** `ADR-0025-M3-BREATH-PIPE-REFERENCE-VOICE.md`  
 **Decision:** M3 proves the protected Breath Pipe continuum with one continuously interacting reference model, begins with an evidence-backed topology-selection gate, separates musical macro controls from DSP coefficients, keeps MIDI/Host semantics outside the model, requires explicit generic-primitive promotion, and proves external excitation through the real interaction path.  
-**Scope:** M3 implementation candidate; final acceptance remains gated by platform/hostile/merge evidence.
+**Scope:** accepted for M3; M3 is complete and frozen.
 
 ## ADR-0026 — M3 Breath Pipe topology selection
 
 **File:** `ADR-0026-M3-BREATH-PIPE-TOPOLOGY.md`  
 **Decision:** select the bounded three-mode interacting modal resonator for the M3 Breath Pipe reference voice; retain tuned-delay and scattering/waveguide families as valid future alternatives rather than genericizing the selected topology.  
-**Scope:** accepted for M3 on exact-head executable evidence; does not become M3 FINAL PASS by itself.
+**Scope:** accepted for M3 on exact-head executable evidence; M3 is complete and frozen.
+
+
+## ADR-0027 — M4 direct VST3 reference host
+
+**File:** `ADR-0027-M4-DIRECT-VST3-HOST.md`  
+**Decision:** implement the first DAW reference host directly against the MIT-licensed Steinberg VST3 SDK, keep all VST3 types outside `resonant_core`, use host-generic parameter UI for M4, and require a portable state contract plus native-core/VST3 parity before host acceptance.  
+**Scope:** accepted for M4 on executable wrapper, validator and dependency-boundary evidence; later M4 sections remain open.

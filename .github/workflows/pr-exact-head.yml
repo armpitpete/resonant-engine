@@ -104,9 +104,19 @@ jobs:
           build/resonant-m3-lab/native-signature > build/resonant-m3-lab/native-signature.json
           node hosts/browser/lab/m3-parity.mjs build/resonant-m3-lab/resonant-lab-node.mjs > build/resonant-m3-lab/wasm-signature.json
           python3 tests/regression/compare_lab_signatures.py build/resonant-m3-lab/native-signature.json build/resonant-m3-lab/wasm-signature.json
-      - name: Upload exact-head M3 Breath Pipe Lab artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: resonant-engine-m3-lab-${{ env.SOURCE_SHA }}
-          if-no-files-found: error
-          path: build/resonant-m3-lab/
+      - name: Record exact-head M3 evidence manifest
+        run: |
+          {
+            echo "## M3 exact-head evidence"
+            echo
+            echo "Source: \`$SOURCE_SHA\`"
+            echo
+            echo "\`\`\`text"
+            sha256sum \
+              build/resonant-m3-lab/build-info.js \
+              build/resonant-m3-lab/app.js \
+              build/resonant-m3-lab/worklet.js \
+              build/resonant-m3-lab/native-signature.json \
+              build/resonant-m3-lab/wasm-signature.json
+            echo "\`\`\`"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
