@@ -50,9 +50,24 @@ jobs:
       - name: Validate VST3 host
         shell: bash
         run: |
-          validator="$(find build-vst3-linux -type f -name validator -perm -111 -print -quit)"
-          plugin="$(find build-vst3-linux -name ResonantEngineBreathPipe.vst3 -print -quit)"
-          test -n "$validator"
-          test -n "$plugin"
-          "$validator" "$plugin" | tee validator.log
+          validator="build-vst3-linux/bin/Release/validator"
+          plugin="build-vst3-linux/VST3/Release/ResonantEngineBreathPipe.vst3"
+
+          test -x "$validator"
+          test -d "$plugin"
+
+          echo "Validator: $validator"
+          echo "Plugin: $plugin"
+          file "$validator"
+          find "$plugin" -maxdepth 3 -type f -print
+
+          "$validator" --selftest | tee validator-selftest.log
+          grep -F "0 failed test(s)." validator-selftest.log
+
+          set +e
+          "$validator" "$plugin" >validator.log 2>&1
+          validator_status=$?
+          set -e
+          cat validator.log
+          test "$validator_status" -eq 0
           grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
