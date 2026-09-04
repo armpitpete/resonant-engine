@@ -160,6 +160,34 @@ public:
         return events_.span();
     }
 
+    [[nodiscard]] bool buildChunk(
+        std::uint32_t start_frame,
+        std::uint32_t frames,
+        FixedEventBuffer<kMaxEventsPerBlock>& output) const noexcept {
+        output.clear();
+        if (frames == 0U || start_frame > frames_ ||
+            frames > frames_ - start_frame) {
+            return false;
+        }
+
+        const auto end_frame = start_frame + frames;
+        for (const auto& event : events_.span()) {
+            if (event.sample_offset < start_frame) {
+                continue;
+            }
+            if (event.sample_offset >= end_frame) {
+                break;
+            }
+
+            auto rebased = event;
+            rebased.sample_offset -= start_frame;
+            if (!output.push(rebased)) {
+                return false;
+            }
+        }
+        return !output.overflowed();
+    }
+
     void abortBlock() noexcept {
         events_.clear();
         malformed_ = false;
