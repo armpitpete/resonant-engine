@@ -3,6 +3,7 @@
 #include "resonant/Event.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -18,6 +19,8 @@ public:
         active_ = false;
         active_note_id_ = kNoNoteId;
         active_pitch_ = -1;
+        have_last_offset_ = false;
+        last_offset_ = 0U;
     }
 
     void beginBlock(std::uint32_t frames) noexcept {
@@ -25,6 +28,8 @@ public:
         frames_ = frames;
         malformed_ = false;
         overflowed_ = false;
+        have_last_offset_ = false;
+        last_offset_ = 0U;
     }
 
     [[nodiscard]] bool noteOn(std::uint32_t sample_offset,
@@ -32,7 +37,7 @@ public:
                               float tuning_cents,
                               float velocity,
                               std::int32_t host_note_id) noexcept {
-        if (!validOffset(sample_offset) || !validPitch(pitch) ||
+        if (!acceptOffset(sample_offset) || !validPitch(pitch) ||
             !std::isfinite(tuning_cents) || !validUnit(velocity) ||
             !reserve(3U)) {
             malformed_ = !overflowed_;
@@ -63,7 +68,7 @@ public:
                                std::int32_t pitch,
                                float release_velocity,
                                std::int32_t host_note_id) noexcept {
-        if (!validOffset(sample_offset) || !validPitch(pitch) ||
+        if (!acceptOffset(sample_offset) || !validPitch(pitch) ||
             !validUnit(release_velocity)) {
             malformed_ = true;
             return false;
@@ -91,7 +96,7 @@ public:
                                     std::int32_t pitch,
                                     float pressure,
                                     std::int32_t host_note_id) noexcept {
-        if (!validOffset(sample_offset) || !validPitch(pitch) ||
+        if (!acceptOffset(sample_offset) || !validPitch(pitch) ||
             !validUnit(pressure)) {
             malformed_ = true;
             return false;
@@ -150,8 +155,14 @@ private:
         return std::isfinite(value) && value >= 0.0F && value <= 1.0F;
     }
 
-    [[nodiscard]] bool validOffset(std::uint32_t sample_offset) const noexcept {
-        return frames_ > 0U && sample_offset < frames_;
+    [[nodiscard]] bool acceptOffset(std::uint32_t sample_offset) noexcept {
+        if (frames_ == 0U || sample_offset >= frames_ ||
+            (have_last_offset_ && sample_offset < last_offset_)) {
+            return false;
+        }
+        have_last_offset_ = true;
+        last_offset_ = sample_offset;
+        return true;
     }
 
     [[nodiscard]] bool reserve(std::size_t count) noexcept {
@@ -180,6 +191,8 @@ private:
     bool active_{false};
     NoteId active_note_id_{kNoNoteId};
     std::int32_t active_pitch_{-1};
+    bool have_last_offset_{false};
+    std::uint32_t last_offset_{0U};
 };
 
 } // namespace resonant::vst3
