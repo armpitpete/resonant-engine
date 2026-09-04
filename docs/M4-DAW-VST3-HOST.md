@@ -236,4 +236,12 @@ The VST3 SDK is pinned to reproducible GitHub tag `v3.8.0_build_66`, superprojec
 - parameters/state/external excitation remain deliberately open for M4.5–M4.7;
 - no custom GUI or JUCE dependency was introduced.
 
-This documentation/test/workflow reconciliation must receive fresh exact-head Oracle and hosted VST3 validation before PR #10 can leave draft.
+### CI cost-control rule
+
+Hosted Windows/macOS validation is a **deliberate milestone gate**, not a per-commit service. A previously green hosted platform result may be carried forward across a later exact head only when hostile diff review proves that no platform-sensitive VST3 implementation, SDK pin, build configuration or validator command changed. Any such relevant change requires a fresh manual hosted matrix.
+
+Routine PR validation remains on the self-hosted Oracle runner. Routine Lab builds record exact-head provenance, deterministic parity and SHA-256 evidence in workflow logs/job summaries; GitHub Actions artifact storage is used only when a later manual test genuinely needs a transferable build. This avoids paying to retain duplicate transient evidence.
+
+For this M4.0–M4.3 reconciliation, hosted run #9 on `61b842d00ec910c4404d4df2b4caf17ceb7358a3` remains valid platform evidence because the later delta changes only workflow triggering, documentation/ADR text and additional SDK-free adapter tests. No VST3 processor, controller, adapter, SDK pin, CMake host build logic or validator command changed. Fresh exact-head Oracle validation is still required.
+
+This slice may leave draft only after that fresh exact-head self-hosted validation and hostile diff review pass. A fresh hosted matrix is required again before M4 final freeze if later M4 work changes any platform-sensitive implementation.
