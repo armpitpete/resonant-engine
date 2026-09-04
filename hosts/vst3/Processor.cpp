@@ -5,6 +5,7 @@
 #include "pluginterfaces/vst/vstspeaker.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 
 namespace resonant::vst3 {
@@ -27,8 +28,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
 Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& setup) {
     if (setup.symbolicSampleSize != Steinberg::Vst::kSample32 ||
-        setup.maxSamplesPerBlock <= 0 ||
-        setup.maxSamplesPerBlock > static_cast<Steinberg::int32>(kMaxBlockSize)) {
+        setup.maxSamplesPerBlock <= 0) {
         return Steinberg::kResultFalse;
     }
 
@@ -37,8 +37,11 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         return result;
     }
 
+    const auto core_block_size = static_cast<std::uint32_t>(
+        std::min(setup.maxSamplesPerBlock,
+                 static_cast<Steinberg::int32>(kMaxBlockSize)));
     if (!adapter_.prepare(setup.sampleRate,
-                          static_cast<std::uint32_t>(setup.maxSamplesPerBlock),
+                          core_block_size,
                           0U,
                           2U)) {
         return Steinberg::kResultFalse;
@@ -63,8 +66,7 @@ Steinberg::tresult PLUGIN_API Processor::canProcessSampleSize(
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
-        data.numSamples < 0 ||
-        data.numSamples > static_cast<Steinberg::int32>(adapter_.spec().max_block_size)) {
+        data.numSamples < 0) {
         return Steinberg::kResultFalse;
     }
 
@@ -95,20 +97,34 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
-    const auto status = adapter_.process(
-        nullptr,
-        0U,
-        output_buffers,
-        static_cast<std::uint32_t>(output_bus.numChannels),
-        static_cast<std::uint32_t>(data.numSamples));
-
-    if (status != ProcessStatus::Ok) {
-        std::fill_n(output_buffers[0], data.numSamples, 0.0F);
-        if (output_bus.numChannels > 1) {
-            std::fill_n(output_buffers[1], data.numSamples, 0.0F);
+    const auto total_frames = static_cast<std::uint32_t>(data.numSamples);
+    const auto output_channels = static_cast<std::uint32_t>(output_bus.numChannels);
+    std::array<Sample*, kMaxChannels> chunk_outputs{};
+    std::uint32_t processed = 0U;
+    while (processed < total_frames) {
+        const auto chunk_frames =
+            std::min(total_frames - processed, adapter_.spec().max_block_size);
+        for (std::uint32_t channel = 0U; channel < output_channels; ++channel) {
+            chunk_outputs[channel] = output_buffers[channel] + processed;
         }
-        output_bus.silenceFlags = ~Steinberg::Vst::SpeakerArrangement{0};
-        return Steinberg::kResultFalse;
+
+        const auto status = adapter_.process(
+            nullptr,
+            0U,
+            chunk_outputs.data(),
+            output_channels,
+            chunk_frames);
+
+        if (status != ProcessStatus::Ok) {
+            for (Steinberg::int32 channel = 0; channel < output_bus.numChannels; ++channel) {
+                std::fill_n(output_buffers[channel] + processed,
+                            data.numSamples - static_cast<Steinberg::int32>(processed),
+                            0.0F);
+            }
+            output_bus.silenceFlags = ~Steinberg::Vst::SpeakerArrangement{0};
+            return Steinberg::kResultFalse;
+        }
+        processed += chunk_frames;
     }
 
     output_bus.silenceFlags = 0;
