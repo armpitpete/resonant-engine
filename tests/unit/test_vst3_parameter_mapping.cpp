@@ -144,10 +144,14 @@ void testMalformedAndOverflowPolicy() {
     resonant::vst3::HostEventTranslator translator;
     translator.beginBlock(32U);
 
+    check(translator.noteOn(4U, 60, 0.0F, 0.6F, 77),
+          "note state can change before automation rejection");
     check(!translator.parameterChange(32U, 203U, 0.5F),
           "out-of-range automation offset rejected");
     check(!translator.valid(), "bad automation invalidates block");
     translator.abortBlock();
+    check(!translator.hasActiveNote(),
+          "rejected automation block rolls note identity back");
 
     translator.beginBlock(32U);
     check(!translator.parameterChange(
