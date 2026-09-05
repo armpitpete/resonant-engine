@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "CMakeLists.txt"
+      - "core/include/resonant/BreathPipe.hpp"
+      - "core/include/resonant/Parameter.hpp"
       - "cmake/vst3_sdk.cmake"
       - "cmake/check_vst3_boundary.cmake"
       - "hosts/vst3/**"
