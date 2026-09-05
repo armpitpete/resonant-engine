@@ -35,6 +35,11 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         return Steinberg::kResultFalse;
     }
 
+    BreathPipeState retained{};
+    if (!capturePortableState(retained)) {
+        return Steinberg::kResultFalse;
+    }
+
     const auto result = AudioEffect::setupProcessing(setup);
     if (result != Steinberg::kResultOk) {
         return result;
@@ -46,10 +51,12 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     if (!adapter_.prepare(setup.sampleRate,
                           core_block_size,
                           0U,
-                          2U)) {
+                          2U) ||
+        !adapter_.restoreState(retained)) {
         return Steinberg::kResultFalse;
     }
 
+    state_cache_ = retained;
     event_translator_.reset();
     chunk_events_.clear();
     clearPendingParameters();
@@ -57,8 +64,14 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 }
 
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
-    if (adapter_.prepared() && !adapter_.reset()) {
-        return Steinberg::kResultFalse;
+    if (adapter_.prepared()) {
+        BreathPipeState retained{};
+        if (!capturePortableState(retained) ||
+            !adapter_.restoreState(retained)) {
+            return Steinberg::kResultFalse;
+        }
+        state_cache_ = retained;
+        clearPendingParameters();
     }
     event_translator_.reset();
     chunk_events_.clear();
@@ -320,8 +333,54 @@ bool Processor::appendPendingParameters() noexcept {
     return true;
 }
 
+bool Processor::capturePortableState(BreathPipeState& state) const noexcept {
+    auto captured = state_cache_;
+    if (adapter_.prepared() && !adapter_.captureState(captured)) {
+        return false;
+    }
+
+    for (std::size_t index = 0U;
+         index < BreathPipeVoice::kParameterSpecs.size(); ++index) {
+        if (pending_parameter_set_[index]) {
+            captured.parameters[index].value = pending_parameter_values_[index];
+        }
+    }
+
+    if (!validBreathPipeState(captured)) {
+        return false;
+    }
+    state = captured;
+    return true;
+}
+
 void Processor::clearPendingParameters() noexcept {
     pending_parameter_set_.fill(false);
+}
+
+Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
+    BreathPipeState decoded{};
+    if (!PortableStateStreamAdapter::read(state, decoded)) {
+        return Steinberg::kResultFalse;
+    }
+
+    if (adapter_.prepared() && !adapter_.restoreState(decoded)) {
+        return Steinberg::kResultFalse;
+    }
+
+    state_cache_ = decoded;
+    clearPendingParameters();
+    event_translator_.reset();
+    chunk_events_.clear();
+    return Steinberg::kResultOk;
+}
+
+Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
+    BreathPipeState captured{};
+    if (!capturePortableState(captured) ||
+        !PortableStateStreamAdapter::write(state, captured)) {
+        return Steinberg::kResultFalse;
+    }
+    return Steinberg::kResultOk;
 }
 
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
