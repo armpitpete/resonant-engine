@@ -137,14 +137,15 @@ persisted. Loading state clears transient DSP history and hard-restores the
 saved parameter targets; ordinary automation continues to use the existing
 core-owned smoothing path.
 
-The VST3 processor keeps the portable parameter snapshot separate from
-performance-note events so saving a project cannot accidentally persist the
-last played note pitch or velocity as parameter state. Valid zero-sample
-parameter flushes are included in the saved snapshot even before the next
-audio block. `Processor::getState()`, `Processor::setState()` and
-`Controller::setComponentState()` are bounded Steinberg `IBStream` adapters
-around the same portable codec; no VST3 type appears in the canonical state
-representation.
+The portable Breath Pipe model keeps persistent `ParameterChange` state
+separate from transient pitch, pressure and per-note expression so saving a
+project cannot accidentally persist the last played note or velocity as
+parameter state. The VST3 processor only stages host lifecycle state when the
+core is not yet prepared and overlays valid zero-sample parameter flushes until
+the next real audio block. `Processor::getState()`, `Processor::setState()`
+and `Controller::setComponentState()` are bounded Steinberg `IBStream`
+adapters around the same portable codec; no VST3 type appears in the canonical
+state representation.
 
 Acceptance remains pending exact-head Oracle, Linux VST3 state regression,
 Steinberg validator and final hostile-review evidence.
