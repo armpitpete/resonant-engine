@@ -156,6 +156,24 @@ public:
         return true;
     }
 
+    [[nodiscard]] bool parameterChange(std::uint32_t sample_offset,
+                                       ParameterId parameter_id,
+                                       Sample native_value) noexcept {
+        if (frames_ == 0U || sample_offset >= frames_ || parameter_id == 0U ||
+            !std::isfinite(native_value)) {
+            malformed_ = true;
+            return false;
+        }
+        if (!reserve(1U)) {
+            return false;
+        }
+
+        (void)events_.push(
+            {sample_offset, EventType::ParameterChange, parameter_id,
+             kNoNoteId, native_value, 0.0F});
+        return true;
+    }
+
     [[nodiscard]] std::span<const Event> events() const noexcept {
         return events_.span();
     }
