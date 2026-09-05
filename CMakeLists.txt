@@ -140,6 +140,13 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_vst3_event_translator_tests)
     add_test(NAME resonant_vst3_event_translator_tests COMMAND resonant_vst3_event_translator_tests)
 
+    add_executable(resonant_vst3_parameter_mapping_tests tests/unit/test_vst3_parameter_mapping.cpp)
+    target_include_directories(resonant_vst3_parameter_mapping_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(resonant_vst3_parameter_mapping_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_vst3_parameter_mapping_tests)
+    resonant_apply_sanitizers(resonant_vst3_parameter_mapping_tests)
+    add_test(NAME resonant_vst3_parameter_mapping_tests COMMAND resonant_vst3_parameter_mapping_tests)
+
     add_executable(resonant_breath_pipe_lab_tests tests/unit/test_breath_pipe_lab.cpp)
     target_include_directories(resonant_breath_pipe_lab_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lab/include)
     target_link_libraries(resonant_breath_pipe_lab_tests PRIVATE ResonantEngine::core)
