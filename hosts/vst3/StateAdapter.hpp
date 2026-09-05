@@ -65,6 +65,13 @@ public:
             offset += static_cast<std::size_t>(read);
         }
 
+        std::byte trailing{};
+        Steinberg::int32 trailing_read = 0;
+        (void)stream->read(&trailing, 1, &trailing_read);
+        if (trailing_read != 0) {
+            return false;
+        }
+
         BreathPipeState decoded{};
         if (!BreathPipeStateCodec::decode(bytes, decoded)) {
             return false;
