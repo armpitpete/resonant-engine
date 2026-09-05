@@ -302,6 +302,44 @@ public:
     static constexpr ParameterId kExternalAmount = 209;
     static constexpr ParameterId kTimbre = 210;
 
+    inline static constexpr std::array<ParameterSpec, 10> kParameterSpecs{{
+        {kPitchHz, "Pitch", "Hz", 48.0F, 2'000.0F, 220.0F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.003, true},
+        {kPressure, "Pressure", "", 0.0F, 1.0F, 0.0F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.008, true},
+        {kTurbulence, "Turbulence", "", 0.0F, 1.0F, 0.25F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.012, true},
+        {kInteraction, "Interaction", "", 0.0F, 1.0F, 0.55F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.010, true},
+        {kDamping, "Damping", "", 0.0F, 1.0F, 0.12F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.012, true},
+        {kRegeneration, "Regeneration", "", 0.0F, 1.5F, 0.18F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.012, true},
+        {kFeedbackColor, "Feedback colour", "", 0.0F, 1.0F, 0.20F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.012, true},
+        {kNonlinearDrive, "Nonlinear drive", "", 0.0F, 1.0F, 0.30F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.010, true},
+        {kExternalAmount, "External excitation", "", 0.0F, 1.0F, 0.50F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.010, true},
+        {kTimbre, "Timbre", "", 0.0F, 1.0F, 0.25F,
+         ParameterKind::Continuous, SmoothingMode::OnePole, 0.012, true},
+    }};
+
+    [[nodiscard]] static constexpr std::span<const ParameterSpec>
+    parameterSpecs() noexcept {
+        return kParameterSpecs;
+    }
+
+    [[nodiscard]] static constexpr const ParameterSpec*
+    parameterSpec(ParameterId id) noexcept {
+        for (const auto& spec : kParameterSpecs) {
+            if (spec.id == id) {
+                return &spec;
+            }
+        }
+        return nullptr;
+    }
+
     explicit BreathPipeVoice(Seed seed = kDefaultSeed) noexcept : seed_(seed) {}
 
     [[nodiscard]] bool prepare(const ProcessSpec& spec) noexcept {
