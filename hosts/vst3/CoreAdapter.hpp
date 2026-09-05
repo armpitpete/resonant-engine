@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resonant/BreathPipe.hpp"
+#include "resonant/BreathPipeState.hpp"
 #include "resonant/Engine.hpp"
 
 #include <cstdint>
@@ -25,7 +26,19 @@ public:
     }
 
     [[nodiscard]] bool reset() noexcept {
-        return prepared_ && engine_.reset();
+        if (!prepared_) {
+            return false;
+        }
+        BreathPipeState state{};
+        return captureState(state) && restoreState(state);
+    }
+
+    [[nodiscard]] bool captureState(BreathPipeState& state) const noexcept {
+        return prepared_ && captureBreathPipeState(engine_.model(), state);
+    }
+
+    [[nodiscard]] bool restoreState(const BreathPipeState& state) noexcept {
+        return prepared_ && restoreBreathPipeState(engine_.model(), state);
     }
 
     [[nodiscard]] ProcessStatus process(const Sample* const* inputs,
