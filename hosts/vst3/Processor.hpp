@@ -38,7 +38,9 @@ private:
     [[nodiscard]] bool stageFlushParameters(
         Steinberg::Vst::ProcessData& data) noexcept;
     [[nodiscard]] bool appendPendingParameters() noexcept;
-    [[nodiscard]] bool capturePortableState(BreathPipeState& state) const noexcept;
+    [[nodiscard]] bool capturePortableState(BreathPipeState& state) noexcept;
+    [[nodiscard]] bool capturePortableStateUnlocked(
+        BreathPipeState& state) const noexcept;
     void storePortableState(const BreathPipeState& state) noexcept;
     [[nodiscard]] bool queuePortableState(const BreathPipeState& state) noexcept;
     [[nodiscard]] bool applyQueuedPortableState() noexcept;

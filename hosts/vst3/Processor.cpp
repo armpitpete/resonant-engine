@@ -34,7 +34,8 @@ void Processor::storePortableState(const BreathPipeState& state) noexcept {
     }
 }
 
-bool Processor::capturePortableState(BreathPipeState& state) const noexcept {
+bool Processor::capturePortableStateUnlocked(
+    BreathPipeState& state) const noexcept {
     auto captured = defaultBreathPipeState();
     const auto seed_low =
         state_seed_low_.load(std::memory_order_acquire);
@@ -53,6 +54,17 @@ bool Processor::capturePortableState(BreathPipeState& state) const noexcept {
     }
     state = captured;
     return true;
+}
+
+bool Processor::capturePortableState(BreathPipeState& state) noexcept {
+    // Component state/lifecycle calls are non-realtime. Serialize the short
+    // multi-field mirror copy against UI/audio writers so the returned state
+    // is one coherent generation, never a mixture of two publications.
+    while (state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+    }
+    const auto captured = capturePortableStateUnlocked(state);
+    state_writer_guard_.clear(std::memory_order_release);
+    return captured;
 }
 
 bool Processor::queuePortableState(const BreathPipeState& state) noexcept {
@@ -113,7 +125,7 @@ bool Processor::applyQueuedPortableState() noexcept {
     }
 
     BreathPipeState requested{};
-    const auto captured = capturePortableState(requested);
+    const auto captured = capturePortableStateUnlocked(requested);
     const auto confirmed =
         state_request_sequence_.load(std::memory_order_acquire);
     state_writer_guard_.clear(std::memory_order_release);

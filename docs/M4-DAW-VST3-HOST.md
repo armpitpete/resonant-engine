@@ -151,9 +151,14 @@ without mutating the live DSP, event translator or pending audio-thread state.
 The audio thread applies the latest complete request at a process boundary.
 Writer arbitration uses an always-lock-free 32-bit atomic state plus
 `atomic_flag`: the UI thread may wait briefly, but `process()` performs only
-a single nonblocking attempt and never spins or takes a mutex. Successful audio
-blocks and zero-sample parameter flushes publish persistent targets back to the
-atomic mirror.
+a single nonblocking attempt and never spins or takes a mutex. Non-realtime
+state readers take the same short writer token only while copying the atomic
+mirror, so a serialized state is always one complete publication generation
+rather than a mixture of fields from two generations. The regression suite
+concurrently alternates two deliberately distinct valid states while repeatedly
+saving state and rejects any mixed-generation snapshot. Successful audio blocks
+and zero-sample parameter flushes publish persistent targets back to the atomic
+mirror.
 
 State may still be loaded before `setupProcessing()`, and valid zero-sample
 parameter flushes remain staged until the next real audio block.

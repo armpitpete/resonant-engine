@@ -199,12 +199,14 @@ if(RESONANT_ENGINE_BUILD_TESTS)
             SYSTEM BEFORE PRIVATE
                 ${vst3sdk_SOURCE_DIR}
         )
+        find_package(Threads REQUIRED)
         target_link_libraries(
             resonant_vst3_state_tests
             PRIVATE
                 ResonantEngine::core
                 sdk
                 sdk_hosting
+                Threads::Threads
         )
         target_compile_features(
             resonant_vst3_state_tests PRIVATE cxx_std_20)

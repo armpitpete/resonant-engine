@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -14,6 +15,7 @@
 #include <iostream>
 #include <span>
 #include <string_view>
+#include <thread>
 
 namespace {
 
@@ -204,6 +206,37 @@ resonant::BreathPipeState nonDefaultState() {
     state.parameters[7].value = 0.51F;
     state.parameters[8].value = 0.33F;
     state.parameters[9].value = 0.77F;
+    return state;
+}
+
+bool equalPortableState(const resonant::BreathPipeState& a,
+                        const resonant::BreathPipeState& b) {
+    if (a.version != b.version || a.seed != b.seed) {
+        return false;
+    }
+    for (std::size_t index = 0U; index < a.parameters.size(); ++index) {
+        if (a.parameters[index].id != b.parameters[index].id ||
+            std::bit_cast<std::uint32_t>(a.parameters[index].value) !=
+                std::bit_cast<std::uint32_t>(b.parameters[index].value)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+resonant::BreathPipeState alternateState() {
+    auto state = resonant::defaultBreathPipeState();
+    state.seed = 0xfedcba9876543210ULL;
+    state.parameters[0].value = 880.0F;
+    state.parameters[1].value = 0.11F;
+    state.parameters[2].value = 0.82F;
+    state.parameters[3].value = 0.21F;
+    state.parameters[4].value = 0.73F;
+    state.parameters[5].value = 1.21F;
+    state.parameters[6].value = 0.89F;
+    state.parameters[7].value = 0.07F;
+    state.parameters[8].value = 0.91F;
+    state.parameters[9].value = 0.14F;
     return state;
 }
 
@@ -504,6 +537,51 @@ void testDeterministicProcessorRecall() {
     }
 }
 
+void testConcurrentStateSnapshotCoherence() {
+    resonant::vst3::Processor processor;
+    const auto state_a = nonDefaultState();
+    const auto state_b = alternateState();
+
+    ChunkedStream initial{};
+    loadEncoded(initial, state_a);
+    check(processor.setState(&initial) == Steinberg::kResultOk,
+          "load initial state before concurrent snapshot test");
+
+    std::atomic<bool> writer_failed{false};
+    std::atomic<bool> start{false};
+    std::thread writer([&]() {
+        while (!start.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        for (std::size_t iteration = 0U; iteration < 2'000U; ++iteration) {
+            ChunkedStream stream{};
+            loadEncoded(stream, (iteration & 1U) == 0U ? state_b : state_a);
+            if (processor.setState(&stream) != Steinberg::kResultOk) {
+                writer_failed.store(true, std::memory_order_release);
+                return;
+            }
+        }
+    });
+
+    start.store(true, std::memory_order_release);
+    bool coherent = true;
+    for (std::size_t iteration = 0U; iteration < 2'000U; ++iteration) {
+        resonant::BreathPipeState snapshot{};
+        if (!readProcessorState(processor, snapshot) ||
+            (!equalPortableState(snapshot, state_a) &&
+             !equalPortableState(snapshot, state_b))) {
+            coherent = false;
+            break;
+        }
+    }
+    writer.join();
+
+    check(!writer_failed.load(std::memory_order_acquire),
+          "concurrent setState publications remain valid");
+    check(coherent,
+          "getState never observes a mixed-generation portable snapshot");
+}
+
 void testControllerComponentStateSynchronization() {
     resonant::vst3::Controller controller;
     check(controller.initialize(nullptr) == Steinberg::kResultOk,
@@ -539,6 +617,7 @@ int main() {
     testAlterRestoreActivationAndPendingFlush();
     testMalformedStreamsAreTransactional();
     testDeterministicProcessorRecall();
+    testConcurrentStateSnapshotCoherence();
     testControllerComponentStateSynchronization();
 
     if (failures != 0) {
