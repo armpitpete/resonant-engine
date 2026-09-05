@@ -111,6 +111,12 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     target_link_libraries(resonant_breath_pipe_state_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_breath_pipe_state_tests)
     resonant_apply_sanitizers(resonant_breath_pipe_state_tests)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # M4.6 diagnostic only: determine whether Release-only cross-instance
+        # bit divergence comes from legal FP contraction/code generation.
+        target_compile_options(resonant_breath_pipe_state_tests PRIVATE
+            $<$<CONFIG:Release>:-ffp-contract=off>)
+    endif()
     add_test(NAME resonant_breath_pipe_state_tests COMMAND resonant_breath_pipe_state_tests)
 
     add_executable(resonant_breath_pipe_allocation_tests tests/unit/test_breath_pipe_allocation.cpp)
