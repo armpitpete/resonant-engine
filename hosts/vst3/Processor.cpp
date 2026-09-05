@@ -2,6 +2,7 @@
 
 #include "hosts/vst3/PluginIds.hpp"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 
 #include <algorithm>
@@ -46,6 +47,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
                           2U)) {
         return Steinberg::kResultFalse;
     }
+
+    event_translator_.reset();
+    chunk_events_.clear();
     return Steinberg::kResultOk;
 }
 
@@ -53,6 +57,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (adapter_.prepared() && !adapter_.reset()) {
         return Steinberg::kResultFalse;
     }
+    event_translator_.reset();
+    chunk_events_.clear();
     return AudioEffect::setActive(state);
 }
 
@@ -63,6 +69,90 @@ Steinberg::tresult PLUGIN_API Processor::canProcessSampleSize(
                : Steinberg::kResultFalse;
 }
 
+bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
+                                std::uint32_t total_frames) noexcept {
+    event_translator_.beginBlock(total_frames);
+    const auto reject_block = [&]() noexcept {
+        event_translator_.abortBlock();
+        return false;
+    };
+
+    if (data.inputEvents == nullptr) {
+        return true;
+    }
+
+    const auto event_count = data.inputEvents->getEventCount();
+    if (event_count < 0 ||
+        event_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+        return reject_block();
+    }
+
+    for (Steinberg::int32 index = 0; index < event_count; ++index) {
+        Steinberg::Vst::Event host_event{};
+        if (data.inputEvents->getEvent(index, host_event) != Steinberg::kResultOk ||
+            host_event.busIndex != 0 ||
+            host_event.sampleOffset < 0 ||
+            host_event.sampleOffset >= data.numSamples) {
+            return reject_block();
+        }
+
+        const auto sample_offset =
+            static_cast<std::uint32_t>(host_event.sampleOffset);
+
+        switch (host_event.type) {
+        case Steinberg::Vst::Event::kNoteOnEvent:
+            if (!event_translator_.noteOn(
+                    sample_offset,
+                    host_event.noteOn.pitch,
+                    host_event.noteOn.tuning,
+                    host_event.noteOn.velocity,
+                    host_event.noteOn.noteId)) {
+                return reject_block();
+            }
+            break;
+
+        case Steinberg::Vst::Event::kNoteOffEvent:
+            if (!event_translator_.noteOff(
+                    sample_offset,
+                    host_event.noteOff.pitch,
+                    host_event.noteOff.velocity,
+                    host_event.noteOff.noteId)) {
+                return reject_block();
+            }
+            break;
+
+        case Steinberg::Vst::Event::kPolyPressureEvent:
+            if (!event_translator_.polyPressure(
+                    sample_offset,
+                    host_event.polyPressure.pitch,
+                    host_event.polyPressure.pressure,
+                    host_event.polyPressure.noteId)) {
+                return reject_block();
+            }
+            break;
+
+        case Steinberg::Vst::Event::kNoteExpressionValueEvent:
+            if (host_event.noteExpressionValue.typeId ==
+                    Steinberg::Vst::kTuningTypeID &&
+                !event_translator_.noteExpressionTuning(
+                    sample_offset,
+                    host_event.noteExpressionValue.value,
+                    host_event.noteExpressionValue.noteId)) {
+                return reject_block();
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    if (!event_translator_.valid()) {
+        return reject_block();
+    }
+    return true;
+}
+
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
@@ -71,7 +161,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     if (data.numSamples == 0) {
-        return Steinberg::kResultOk;
+        if (data.inputEvents == nullptr) {
+            return Steinberg::kResultOk;
+        }
+        return data.inputEvents->getEventCount() == 0
+                   ? Steinberg::kResultOk
+                   : Steinberg::kResultFalse;
     }
 
     if (data.numOutputs < 1 || data.outputs == nullptr) {
@@ -99,6 +194,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     const auto total_frames = static_cast<std::uint32_t>(data.numSamples);
     const auto output_channels = static_cast<std::uint32_t>(output_bus.numChannels);
+
+    const auto fail_closed = [&](std::uint32_t start_frame) {
+        for (Steinberg::int32 channel = 0; channel < output_bus.numChannels; ++channel) {
+            std::fill_n(
+                output_buffers[channel] + start_frame,
+                data.numSamples - static_cast<Steinberg::int32>(start_frame),
+                0.0F);
+        }
+        output_bus.silenceFlags = ~Steinberg::Vst::SpeakerArrangement{0};
+        return Steinberg::kResultFalse;
+    };
+
+    if (!translateEvents(data, total_frames)) {
+        return fail_closed(0U);
+    }
+
     std::array<Sample*, kMaxChannels> chunk_outputs{};
     std::uint32_t processed = 0U;
     while (processed < total_frames) {
@@ -108,21 +219,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             chunk_outputs[channel] = output_buffers[channel] + processed;
         }
 
+        if (!event_translator_.buildChunk(
+                processed, chunk_frames, chunk_events_)) {
+            return fail_closed(processed);
+        }
+
         const auto status = adapter_.process(
             nullptr,
             0U,
             chunk_outputs.data(),
             output_channels,
-            chunk_frames);
+            chunk_frames,
+            chunk_events_.span());
 
         if (status != ProcessStatus::Ok) {
-            for (Steinberg::int32 channel = 0; channel < output_bus.numChannels; ++channel) {
-                std::fill_n(output_buffers[channel] + processed,
-                            data.numSamples - static_cast<Steinberg::int32>(processed),
-                            0.0F);
-            }
-            output_bus.silenceFlags = ~Steinberg::Vst::SpeakerArrangement{0};
-            return Steinberg::kResultFalse;
+            return fail_closed(processed);
         }
         processed += chunk_frames;
     }

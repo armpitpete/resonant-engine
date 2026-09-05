@@ -1,0 +1,73 @@
+name: M4 VST3 Linux Exact Head
+
+on:
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/vst3_sdk.cmake"
+      - "cmake/check_vst3_boundary.cmake"
+      - "hosts/vst3/**"
+      - ".github/workflows/m4-vst3-linux.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m4-vst3-linux-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  vst3-linux:
+    runs-on: [self-hosted, Linux, ARM64, oracle-ci, resonant-engine]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Verify raw PR head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Configure VST3 host
+        run: >
+          cmake -S . -B build-vst3-linux
+          -DRESONANT_ENGINE_BUILD_VST3=ON
+          -DRESONANT_ENGINE_BUILD_TESTS=OFF
+          -DRESONANT_ENGINE_BUILD_RENDER=OFF
+          -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON
+          -DCMAKE_BUILD_TYPE=Release
+          -DSMTG_CREATE_PLUGIN_LINK=OFF
+
+      - name: Build VST3 host
+        run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
+
+      - name: Build Steinberg validator
+        run: cmake --build build-vst3-linux --target validator --parallel 2
+
+      - name: Validate VST3 host
+        shell: bash
+        run: |
+          validator="build-vst3-linux/bin/Release/validator"
+          plugin="build-vst3-linux/VST3/Release/ResonantEngineBreathPipe.vst3"
+
+          test -x "$validator"
+          test -d "$plugin"
+
+          echo "Validator: $validator"
+          echo "Plugin: $plugin"
+          file "$validator"
+          find "$plugin" -maxdepth 3 -type f -print
+
+          "$validator" --selftest | tee validator-selftest.log
+          grep -F "0 failed test(s)." validator-selftest.log
+
+          set +e
+          "$validator" "$plugin" >validator.log 2>&1
+          validator_status=$?
+          set -e
+          cat validator.log
+          test "$validator_status" -eq 0
+          grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
