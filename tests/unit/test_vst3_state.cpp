@@ -176,13 +176,12 @@ bool prepare(resonant::vst3::Processor& processor) {
     return processor.setupProcessing(setup) == Steinberg::kResultOk;
 }
 
-ChunkedStream encodedStream(const resonant::BreathPipeState& state,
-                            std::size_t chunk = 256U) {
+void loadEncoded(ChunkedStream& stream,
+                 const resonant::BreathPipeState& state) {
     std::array<std::byte, resonant::BreathPipeStateCodec::kEncodedSize> bytes{};
-    (void)resonant::BreathPipeStateCodec::encode(state, bytes);
-    ChunkedStream stream{chunk};
+    check(resonant::BreathPipeStateCodec::encode(state, bytes),
+          "encode portable state into test stream");
     stream.load(bytes);
-    return stream;
 }
 
 bool readProcessorState(resonant::vst3::Processor& processor,
@@ -217,7 +216,8 @@ Steinberg::tresult processBlock(
 
 void testPreSetupLoadAndPartialStreams() {
     const auto desired = nonDefaultState();
-    auto input = encodedStream(desired, 7U);
+    ChunkedStream input{7U};
+    loadEncoded(input, desired);
 
     resonant::vst3::Processor processor;
     check(processor.setState(&input) == Steinberg::kResultOk,
@@ -241,7 +241,8 @@ void testAlterRestoreActivationAndPendingFlush() {
     check(prepare(processor), "prepare processor for alter/restore");
 
     const auto saved = nonDefaultState();
-    auto saved_stream = encodedStream(saved, 11U);
+    ChunkedStream saved_stream{11U};
+    loadEncoded(saved_stream, saved);
     check(processor.setState(&saved_stream) == Steinberg::kResultOk,
           "load saved non-default state");
 
@@ -314,7 +315,8 @@ void testMalformedStreamsAreTransactional() {
     check(prepare(processor), "prepare processor for malformed state");
 
     const auto baseline = nonDefaultState();
-    auto valid_stream = encodedStream(baseline);
+    ChunkedStream valid_stream{};
+    loadEncoded(valid_stream, baseline);
     check(processor.setState(&valid_stream) == Steinberg::kResultOk,
           "load baseline before malformed state");
 
@@ -329,7 +331,8 @@ void testMalformedStreamsAreTransactional() {
     check(processor.setState(&short_stream) == Steinberg::kResultFalse,
           "short state stream rejected");
 
-    auto malformed = encodedStream(baseline);
+    ChunkedStream malformed{};
+    loadEncoded(malformed, baseline);
     auto malformed_bytes =
         std::array<std::byte, resonant::BreathPipeStateCodec::kEncodedSize>{};
     std::copy(malformed.bytes().begin(), malformed.bytes().end(),
@@ -355,8 +358,10 @@ void testDeterministicProcessorRecall() {
 
     resonant::vst3::Processor a;
     resonant::vst3::Processor b;
-    auto a_state = encodedStream(state, 9U);
-    auto b_state = encodedStream(state, 13U);
+    ChunkedStream a_state{9U};
+    ChunkedStream b_state{13U};
+    loadEncoded(a_state, state);
+    loadEncoded(b_state, state);
     check(a.setState(&a_state) == Steinberg::kResultOk &&
               b.setState(&b_state) == Steinberg::kResultOk,
           "load identical state into fresh processors");
@@ -387,7 +392,8 @@ void testControllerComponentStateSynchronization() {
           "initialize controller for component-state sync");
 
     const auto state = nonDefaultState();
-    auto stream = encodedStream(state, 6U);
+    ChunkedStream stream{6U};
+    loadEncoded(stream, state);
     check(controller.setComponentState(&stream) == Steinberg::kResultOk,
           "controller accepts same portable component state");
 
