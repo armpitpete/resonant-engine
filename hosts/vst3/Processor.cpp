@@ -170,8 +170,7 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
 }
 
 bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
-                                    std::uint32_t total_frames,
-                                    BreathPipeState& state) noexcept {
+                                    std::uint32_t total_frames) noexcept {
     if (data.inputParameterChanges == nullptr) {
         return true;
     }
@@ -186,10 +185,6 @@ bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
         queue_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
         return reject_block();
     }
-
-    std::array<Steinberg::int32,
-               BreathPipeVoice::kParameterSpecs.size()> latest_offsets{};
-    latest_offsets.fill(-1);
 
     for (Steinberg::int32 queue_index = 0;
          queue_index < queue_count; ++queue_index) {
@@ -213,18 +208,6 @@ bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
             continue;
         }
 
-        std::size_t parameter_index = BreathPipeVoice::kParameterSpecs.size();
-        for (std::size_t index = 0U;
-             index < BreathPipeVoice::kParameterSpecs.size(); ++index) {
-            if (BreathPipeVoice::kParameterSpecs[index].id == spec->id) {
-                parameter_index = index;
-                break;
-            }
-        }
-        if (parameter_index == BreathPipeVoice::kParameterSpecs.size()) {
-            return reject_block();
-        }
-
         for (Steinberg::int32 point_index = 0;
              point_index < point_count; ++point_index) {
             Steinberg::int32 sample_offset = 0;
@@ -244,11 +227,6 @@ bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
                     spec->id,
                     native)) {
                 return reject_block();
-            }
-
-            if (sample_offset >= latest_offsets[parameter_index]) {
-                latest_offsets[parameter_index] = sample_offset;
-                state.parameters[parameter_index].value = native;
             }
         }
     }
@@ -357,6 +335,9 @@ bool Processor::appendPendingParameters() noexcept {
 
 bool Processor::capturePortableState(BreathPipeState& state) const noexcept {
     auto captured = state_cache_;
+    if (adapter_.prepared() && !adapter_.captureState(captured)) {
+        return false;
+    }
 
     for (std::size_t index = 0U;
          index < BreathPipeVoice::kParameterSpecs.size(); ++index) {
@@ -455,11 +436,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultFalse;
     };
 
-    BreathPipeState next_state{};
-    if (!capturePortableState(next_state) ||
-        !translateEvents(data, total_frames) ||
+    if (!translateEvents(data, total_frames) ||
         !appendPendingParameters() ||
-        !translateParameters(data, total_frames, next_state)) {
+        !translateParameters(data, total_frames)) {
         return fail_closed(0U);
     }
 
@@ -491,7 +470,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         processed += chunk_frames;
     }
 
-    state_cache_ = next_state;
     clearPendingParameters();
     output_bus.silenceFlags = 0;
     return Steinberg::kResultOk;
