@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.4 MERGED AND COMPLETE — M4.5 IN PROGRESS**
+Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 NEXT**
 
 ## Goal
 
@@ -92,13 +92,19 @@ Full MPE is not required for M4 unless it falls naturally out of the portable ev
 
 ### M4.5 — Parameter and automation mapping
 
-- [ ] stable mapping from core `ParameterId` to VST3 `ParamID`;
-- [ ] normalized/native conversion via core metadata;
-- [ ] sample-accurate automation points;
-- [ ] host-visible names/units/defaults from portable metadata;
-- [ ] topology/internal parameters remain correctly hidden or non-realtime.
+- [x] stable mapping from core `ParameterId` to VST3 `ParamID`;
+- [x] normalized/native conversion via core metadata;
+- [x] sample-accurate automation points;
+- [x] host-visible names/units/defaults from portable metadata;
+- [x] topology/internal parameters remain correctly hidden or non-realtime.
 
-Active implementation candidate promotes the existing Breath Pipe parameter table from the Lab into portable core metadata, keeps the stable numeric `ParameterId` as the VST3 `ParamID`, generates controller parameters from that metadata, and translates bounded VST3 automation queues into ordinary core `ParameterChange` events at their exact sample offsets. Acceptance remains pending exact-head Oracle and Linux VST3/validator evidence.
+M4.5 merged as PR #12 at exact authorized head `2feaa9863443416eb7d8c2e50defafbfd58b206a` as merge commit `a0228e3853e17e9cc3a2a85ab6dd4e04fba11016`. The merge commit contains no file-level delta from the authorized head, preserving the exact tested tree.
+
+Exact-head acceptance passed native Debug/Release, ASan+UBSan, no-exceptions/no-RTTI portability, M3 native/WASM parity, the dedicated zero-sample VST3 parameter-flush regression, and the Linux VST3 integration gate. Steinberg validator reported **47 tests passed, 0 tests failed**.
+
+The accepted host projection keeps the stable numeric core `ParameterId` as the VST3 `ParamID`, derives host names/units/defaults from portable metadata, translates sample-accurate automation to ordinary core `ParameterChange` events, and handles VST3 zero-sample/no-audio parameter flushes without inventing a DSP block. Flushed values are staged transactionally at the Host boundary and enter the core through the ordinary portable parameter path on the next real block, preserving core-owned smoothing and frozen M3 DSP semantics.
+
+M4.5 is complete. M4.6 proceeds from merged `main` and is limited to portable state recall.
 
 ### M4.6 — Portable state recall
 
