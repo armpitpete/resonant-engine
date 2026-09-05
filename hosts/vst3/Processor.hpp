@@ -32,8 +32,7 @@ private:
     [[nodiscard]] bool translateEvents(Steinberg::Vst::ProcessData& data,
                                        std::uint32_t total_frames) noexcept;
     [[nodiscard]] bool translateParameters(Steinberg::Vst::ProcessData& data,
-                                           std::uint32_t total_frames,
-                                           BreathPipeState& state) noexcept;
+                                           std::uint32_t total_frames) noexcept;
     [[nodiscard]] bool stageFlushParameters(
         Steinberg::Vst::ProcessData& data) noexcept;
     [[nodiscard]] bool appendPendingParameters() noexcept;
