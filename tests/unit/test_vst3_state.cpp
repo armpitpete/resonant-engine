@@ -398,6 +398,19 @@ void testMalformedStreamsAreTransactional() {
     check(processor.setState(&short_stream) == Steinberg::kResultFalse,
           "short state stream rejected");
 
+    std::array<std::byte,
+               resonant::BreathPipeStateCodec::kEncodedSize + 1U> trailing{};
+    std::array<std::byte,
+               resonant::BreathPipeStateCodec::kEncodedSize> baseline_bytes{};
+    check(resonant::BreathPipeStateCodec::encode(baseline, baseline_bytes),
+          "encode baseline for trailing-byte stream test");
+    std::copy(baseline_bytes.begin(), baseline_bytes.end(), trailing.begin());
+    trailing.back() = std::byte{0x7fU};
+    ChunkedStream trailing_stream{5U};
+    trailing_stream.load(trailing);
+    check(processor.setState(&trailing_stream) == Steinberg::kResultFalse,
+          "component state with trailing bytes rejected");
+
     ChunkedStream malformed{};
     loadEncoded(malformed, baseline);
     auto malformed_bytes =
