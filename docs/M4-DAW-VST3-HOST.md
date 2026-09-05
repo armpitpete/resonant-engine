@@ -142,10 +142,23 @@ smoothing path.
 The portable Breath Pipe model keeps persistent `ParameterChange` state
 separate from transient pitch, pressure and per-note expression so saving a
 project cannot accidentally persist the last played note or velocity as
-parameter state. The VST3 processor only stages host lifecycle state when the
-core is not yet prepared and overlays valid zero-sample parameter flushes until
-the next real audio block. `Processor::getState()`, `Processor::setState()`
-and `Controller::setComponentState()` are bounded Steinberg `IBStream`
+parameter state. The VST3 processor keeps a lock-free atomic mirror of the portable seed and
+parameter targets. This is required because Steinberg permits component
+`getState()` / `setState()` calls from the UI thread while realtime
+`process()` is active on the audio thread. `getState()` reads only atomic
+mirror values; `setState()` publishes a validated UI-to-audio state request
+without mutating the live DSP, event translator or pending audio-thread state.
+The audio thread applies the latest complete request at a process boundary.
+Writer arbitration uses an always-lock-free 32-bit atomic state plus
+`atomic_flag`: the UI thread may wait briefly, but `process()` performs only
+a single nonblocking attempt and never spins or takes a mutex. Successful audio
+blocks and zero-sample parameter flushes publish persistent targets back to the
+atomic mirror.
+
+State may still be loaded before `setupProcessing()`, and valid zero-sample
+parameter flushes remain staged until the next real audio block.
+`Processor::getState()`, `Processor::setState()` and
+`Controller::setComponentState()` remain bounded Steinberg `IBStream`
 adapters around the same portable codec; no VST3 type appears in the canonical
 state representation.
 

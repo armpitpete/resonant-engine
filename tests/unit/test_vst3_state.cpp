@@ -345,6 +345,19 @@ void testAlterRestoreActivationAndPendingFlush() {
               1.0e-7F,
           "save alter restore returns saved pressure");
 
+    std::array<float, 128U> restored_left{};
+    std::array<float, 128U> restored_right{};
+    check(processBlock(processor, restored_left, restored_right) ==
+              Steinberg::kResultOk,
+          "queued setState applies at the next audio block boundary");
+    resonant::BreathPipeState after_handoff{};
+    check(readProcessorState(processor, after_handoff),
+          "capture state after queued audio-thread handoff");
+    check(after_handoff.seed == saved.seed &&
+              std::abs(after_handoff.parameters[1].value -
+                       saved.parameters[1].value) < 1.0e-7F,
+          "audio-thread state handoff preserves portable state");
+
     check(processor.setActive(true) == Steinberg::kResultOk &&
               processor.setActive(false) == Steinberg::kResultOk,
           "activate/deactivate lifecycle succeeds after recall");
@@ -378,6 +391,28 @@ void testAlterRestoreActivationAndPendingFlush() {
           "getState captures pending zero-sample parameter state");
     check(std::abs(with_pending.parameters[1].value - 0.9F) < 1.0e-6F,
           "pending flush is included without fake audio processing");
+
+    saved_stream.rewind();
+    check(processor.setState(&saved_stream) == Steinberg::kResultOk,
+          "setState supersedes an earlier pending zero-sample flush");
+    resonant::BreathPipeState immediate_recall{};
+    check(readProcessorState(processor, immediate_recall),
+          "getState sees UI-published state before the next audio block");
+    check(std::abs(immediate_recall.parameters[1].value -
+                   saved.parameters[1].value) < 1.0e-7F,
+          "UI state mirror immediately supersedes pending flush state");
+
+    std::array<float, 128U> handoff_left{};
+    std::array<float, 128U> handoff_right{};
+    check(processBlock(processor, handoff_left, handoff_right) ==
+              Steinberg::kResultOk,
+          "audio thread applies state that superseded pending flush");
+    resonant::BreathPipeState after_flush_override{};
+    check(readProcessorState(processor, after_flush_override),
+          "capture state after pending flush override");
+    check(std::abs(after_flush_override.parameters[1].value -
+                   saved.parameters[1].value) < 1.0e-7F,
+          "superseded pending flush cannot leak into recalled state");
 }
 
 void testMalformedStreamsAreTransactional() {
