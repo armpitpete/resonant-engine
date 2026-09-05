@@ -151,9 +151,10 @@ state representation.
 
 The first exact-head Release regression used two separately inlined direct
 `BreathPipeVoice::processSample()` call sites and demanded bit identity between
-them. GNU 13 legally contracted floating-point operations differently between
-those optimized call sites; the sub-ULP divergence was then amplified by the
-feedback resonator. A diagnostic build with `-ffp-contract=off` made that
+them. GNU 13 Release floating-point contraction/code generation allowed those
+separately inlined call sites to round differently; the resulting divergence
+was then amplified by the feedback resonator. A diagnostic build with
+`-ffp-contract=off` made that
 otherwise unchanged test pass 38/38, while Debug, sanitizers and the Release
 VST3 two-processor test were already deterministic. The diagnostic compiler
 flag is not retained. The permanent core regression instead proves the actual
