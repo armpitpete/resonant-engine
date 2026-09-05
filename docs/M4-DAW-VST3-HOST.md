@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.3 MERGED AND COMPLETE — M4.4 IN PROGRESS**
+Status: **M4.0–M4.4 MERGED AND COMPLETE — M4.5 IN PROGRESS**
 
 ## Goal
 
@@ -86,7 +86,7 @@ M4 must not change these accepted rules:
 - [x] deterministic sample-offset ordering;
 - [x] malformed/overflow policy using bounded event storage.
 
-Implementation is on the active M4.4 candidate and remains subject to exact-head Oracle validation and hostile review before protected merge.
+M4.4 merged as PR #11 at exact authorized head `28d7f67e095e0f7e12474aa695e9b8e35a414c38`. Exact-head native Debug/Release, sanitizers, portability, M3 native/WASM parity and Linux VST3 validation all passed; Steinberg validator reported **47 tests passed, 0 tests failed**. Merge commit `13eb9fe1158d02c754da3a0bae4af9f569379ff4` has the identical tree `244ee39bfe0898c40d322958681c7632370aa2be`.
 
 Full MPE is not required for M4 unless it falls naturally out of the portable event contract without broadening scope.
 
@@ -97,6 +97,8 @@ Full MPE is not required for M4 unless it falls naturally out of the portable ev
 - [ ] sample-accurate automation points;
 - [ ] host-visible names/units/defaults from portable metadata;
 - [ ] topology/internal parameters remain correctly hidden or non-realtime.
+
+Active implementation candidate promotes the existing Breath Pipe parameter table from the Lab into portable core metadata, keeps the stable numeric `ParameterId` as the VST3 `ParamID`, generates controller parameters from that metadata, and translates bounded VST3 automation queues into ordinary core `ParameterChange` events at their exact sample offsets. Acceptance remains pending exact-head Oracle and Linux VST3/validator evidence.
 
 ### M4.6 — Portable state recall
 
