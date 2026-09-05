@@ -60,7 +60,7 @@ private:
         constexpr std::size_t capacity = 128U;
         const auto count = std::min(source.size(), capacity - 1U);
         for (std::size_t index = 0U; index < count; ++index) {
-            destination[index] = static_cast<Steinberg::TChar>(
+            destination[index] = static_cast<Steinberg::Vst::TChar>(
                 static_cast<unsigned char>(source[index]));
         }
         destination[count] = 0;
