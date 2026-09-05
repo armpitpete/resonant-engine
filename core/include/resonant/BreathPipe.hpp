@@ -470,7 +470,77 @@ public:
     [[nodiscard]] Sample currentRegeneration() const noexcept { return regeneration_.current(); }
     [[nodiscard]] Seed seed() const noexcept { return seed_; }
 
+    [[nodiscard]] bool parameterTarget(ParameterId id, Sample& value) const noexcept {
+        switch (id) {
+        case kPitchHz: value = pitch_.target(); return true;
+        case kPressure: value = pressure_.target(); return true;
+        case kTurbulence: value = turbulence_.target(); return true;
+        case kInteraction: value = interaction_.target(); return true;
+        case kDamping: value = damping_.target(); return true;
+        case kRegeneration: value = regeneration_.target(); return true;
+        case kFeedbackColor: value = feedback_color_.target(); return true;
+        case kNonlinearDrive: value = nonlinear_drive_.target(); return true;
+        case kExternalAmount: value = external_amount_.target(); return true;
+        case kTimbre: value = timbre_.target(); return true;
+        default: return false;
+        }
+    }
+
+    // State recall is a non-realtime lifecycle operation. It deliberately
+    // clears transient resonator/exciter history, then restores canonical
+    // parameter targets as hard state so recall cannot depend on whatever
+    // audio the instance processed before the load. Ordinary automation still
+    // uses handleParameter() and the existing core-owned smoothers.
+    [[nodiscard]] bool restoreParameterTargets(
+        std::span<const Sample> values) noexcept {
+        if (values.size() != kParameterSpecs.size()) {
+            return false;
+        }
+        for (std::size_t index = 0U; index < values.size(); ++index) {
+            const auto& spec = kParameterSpecs[index];
+            if (!std::isfinite(values[index]) ||
+                values[index] < spec.minimum ||
+                values[index] > spec.maximum) {
+                return false;
+            }
+        }
+
+        reset();
+        for (std::size_t index = 0U; index < values.size(); ++index) {
+            resetParameterTarget(kParameterSpecs[index].id, values[index]);
+        }
+        return true;
+    }
+
 private:
+    void resetParameterTarget(ParameterId target, Sample value) noexcept {
+        switch (target) {
+        case kPitchHz: pitch_.reset(resonator_.clampTuning(value)); break;
+        case kPressure: pressure_.reset(clampFinite(value, 0.0F, 1.0F)); break;
+        case kTurbulence:
+            turbulence_.reset(clampFinite(value, 0.0F, 1.0F, 0.25F));
+            break;
+        case kInteraction:
+            interaction_.reset(clampFinite(value, 0.0F, 1.0F, 0.55F));
+            break;
+        case kDamping: damping_.reset(clampFinite(value, 0.0F, 1.0F, 0.12F)); break;
+        case kRegeneration:
+            regeneration_.reset(clampFinite(value, 0.0F, 1.5F, 0.18F));
+            break;
+        case kFeedbackColor:
+            feedback_color_.reset(clampFinite(value, 0.0F, 1.0F, 0.20F));
+            break;
+        case kNonlinearDrive:
+            nonlinear_drive_.reset(clampFinite(value, 0.0F, 1.0F, 0.30F));
+            break;
+        case kExternalAmount:
+            external_amount_.reset(clampFinite(value, 0.0F, 1.0F, 0.50F));
+            break;
+        case kTimbre: timbre_.reset(clampFinite(value, 0.0F, 1.0F, 0.25F)); break;
+        default: break;
+        }
+    }
+
     void handleParameter(ParameterId target, Sample value) noexcept {
         switch (target) {
         case kPitchHz:
