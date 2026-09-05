@@ -4,6 +4,8 @@
 #include "hosts/vst3/EventTranslator.hpp"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
+#include <array>
+
 namespace resonant::vst3 {
 
 class Processor final : public Steinberg::Vst::AudioEffect {
@@ -26,9 +28,20 @@ public:
 private:
     [[nodiscard]] bool translateEvents(Steinberg::Vst::ProcessData& data,
                                        std::uint32_t total_frames) noexcept;
+    [[nodiscard]] bool translateParameters(Steinberg::Vst::ProcessData& data,
+                                           std::uint32_t total_frames) noexcept;
+    [[nodiscard]] bool stageFlushParameters(
+        Steinberg::Vst::ProcessData& data) noexcept;
+    [[nodiscard]] bool appendPendingParameters() noexcept;
+    void clearPendingParameters() noexcept;
+
     BreathPipeCoreAdapter adapter_{};
     HostEventTranslator event_translator_{};
     FixedEventBuffer<kMaxEventsPerBlock> chunk_events_{};
+    std::array<Sample, BreathPipeVoice::kParameterSpecs.size()>
+        pending_parameter_values_{};
+    std::array<bool, BreathPipeVoice::kParameterSpecs.size()>
+        pending_parameter_set_{};
 };
 
 } // namespace resonant::vst3

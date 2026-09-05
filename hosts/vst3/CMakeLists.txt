@@ -4,6 +4,7 @@ set(RESONANT_VST3_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Controller.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/PluginFactory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/PluginIds.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ParameterMapping.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Processor.hpp
 )

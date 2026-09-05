@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "CMakeLists.txt"
+      - "core/include/resonant/BreathPipe.hpp"
+      - "core/include/resonant/Parameter.hpp"
       - "cmake/vst3_sdk.cmake"
       - "cmake/check_vst3_boundary.cmake"
       - "hosts/vst3/**"
@@ -35,7 +37,7 @@ jobs:
         run: >
           cmake -S . -B build-vst3-linux
           -DRESONANT_ENGINE_BUILD_VST3=ON
-          -DRESONANT_ENGINE_BUILD_TESTS=OFF
+          -DRESONANT_ENGINE_BUILD_TESTS=ON
           -DRESONANT_ENGINE_BUILD_RENDER=OFF
           -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON
           -DCMAKE_BUILD_TYPE=Release
@@ -43,6 +45,11 @@ jobs:
 
       - name: Build VST3 host
         run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
+
+      - name: Run VST3 zero-sample flush regression
+        run: |
+          cmake --build build-vst3-linux --target resonant_vst3_processor_flush_tests --parallel 2
+          ctest --test-dir build-vst3-linux -R resonant_vst3_processor_flush_tests --output-on-failure
 
       - name: Build Steinberg validator
         run: cmake --build build-vst3-linux --target validator --parallel 2

@@ -1,8 +1,10 @@
 #include "hosts/vst3/Processor.hpp"
 
+#include "hosts/vst3/ParameterMapping.hpp"
 #include "hosts/vst3/PluginIds.hpp"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 
 #include <algorithm>
@@ -50,6 +52,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     event_translator_.reset();
     chunk_events_.clear();
+    clearPendingParameters();
     return Steinberg::kResultOk;
 }
 
@@ -153,6 +156,174 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
     return true;
 }
 
+bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
+                                    std::uint32_t total_frames) noexcept {
+    if (data.inputParameterChanges == nullptr) {
+        return true;
+    }
+
+    const auto reject_block = [&]() noexcept {
+        event_translator_.abortBlock();
+        return false;
+    };
+
+    const auto queue_count = data.inputParameterChanges->getParameterCount();
+    if (queue_count < 0 ||
+        queue_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+        return reject_block();
+    }
+
+    for (Steinberg::int32 queue_index = 0;
+         queue_index < queue_count; ++queue_index) {
+        auto* queue = data.inputParameterChanges->getParameterData(queue_index);
+        if (queue == nullptr) {
+            return reject_block();
+        }
+
+        const auto host_id =
+            static_cast<HostParamId>(queue->getParameterId());
+        const auto* spec = HostParameterMapping::specForHostId(host_id);
+        const auto point_count = queue->getPointCount();
+        if (point_count < 0 ||
+            point_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+            return reject_block();
+        }
+
+        // Unknown, hidden, internal or topology parameters are not part of
+        // this portable host projection. Ignore their queues safely.
+        if (spec == nullptr) {
+            continue;
+        }
+
+        for (Steinberg::int32 point_index = 0;
+             point_index < point_count; ++point_index) {
+            Steinberg::int32 sample_offset = 0;
+            Steinberg::Vst::ParamValue normalized = 0.0;
+            if (queue->getPoint(point_index, sample_offset, normalized) !=
+                    Steinberg::kResultOk ||
+                sample_offset < 0 ||
+                sample_offset >= static_cast<Steinberg::int32>(total_frames)) {
+                return reject_block();
+            }
+
+            Sample native = 0.0F;
+            if (!HostParameterMapping::normalizedToNative(
+                    host_id, normalized, native) ||
+                !event_translator_.parameterChange(
+                    static_cast<std::uint32_t>(sample_offset),
+                    spec->id,
+                    native)) {
+                return reject_block();
+            }
+        }
+    }
+
+    if (!event_translator_.valid()) {
+        return reject_block();
+    }
+    return true;
+}
+
+bool Processor::stageFlushParameters(
+    Steinberg::Vst::ProcessData& data) noexcept {
+    if (data.inputEvents != nullptr && data.inputEvents->getEventCount() != 0) {
+        return false;
+    }
+    if (data.inputParameterChanges == nullptr) {
+        return true;
+    }
+
+    const auto queue_count = data.inputParameterChanges->getParameterCount();
+    if (queue_count < 0 ||
+        queue_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+        return false;
+    }
+
+    auto staged_values = pending_parameter_values_;
+    auto staged_set = pending_parameter_set_;
+
+    for (Steinberg::int32 queue_index = 0;
+         queue_index < queue_count; ++queue_index) {
+        auto* queue = data.inputParameterChanges->getParameterData(queue_index);
+        // Steinberg's flush conformance tests can present an empty parameter
+        // collection with no concrete queue. With zero samples this means
+        // "no state change", not a malformed audio block.
+        if (queue == nullptr) {
+            continue;
+        }
+
+        const auto host_id =
+            static_cast<HostParamId>(queue->getParameterId());
+        const auto* spec = HostParameterMapping::specForHostId(host_id);
+        const auto point_count = queue->getPointCount();
+        if (point_count < 0 ||
+            point_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+            return false;
+        }
+
+        // Unknown/hidden parameters are outside the portable projection.
+        if (spec == nullptr || point_count == 0) {
+            continue;
+        }
+
+        std::size_t parameter_index = BreathPipeVoice::kParameterSpecs.size();
+        for (std::size_t index = 0U;
+             index < BreathPipeVoice::kParameterSpecs.size(); ++index) {
+            if (BreathPipeVoice::kParameterSpecs[index].id == spec->id) {
+                parameter_index = index;
+                break;
+            }
+        }
+        if (parameter_index == BreathPipeVoice::kParameterSpecs.size()) {
+            return false;
+        }
+
+        Sample native = 0.0F;
+        for (Steinberg::int32 point_index = 0;
+             point_index < point_count; ++point_index) {
+            Steinberg::int32 sample_offset = 0;
+            Steinberg::Vst::ParamValue normalized = 0.0;
+            if (queue->getPoint(point_index, sample_offset, normalized) !=
+                    Steinberg::kResultOk ||
+                sample_offset != 0 ||
+                !HostParameterMapping::normalizedToNative(
+                    host_id, normalized, native)) {
+                return false;
+            }
+        }
+
+        // A zero-sample flush has no DSP timeline. Retain only the final
+        // value for each parameter and apply it through the ordinary portable
+        // ParameterChange path at sample zero of the next real audio block.
+        staged_values[parameter_index] = native;
+        staged_set[parameter_index] = true;
+    }
+
+    pending_parameter_values_ = staged_values;
+    pending_parameter_set_ = staged_set;
+    return true;
+}
+
+bool Processor::appendPendingParameters() noexcept {
+    for (std::size_t index = 0U;
+         index < BreathPipeVoice::kParameterSpecs.size(); ++index) {
+        if (!pending_parameter_set_[index]) {
+            continue;
+        }
+        if (!event_translator_.parameterChange(
+                0U,
+                BreathPipeVoice::kParameterSpecs[index].id,
+                pending_parameter_values_[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void Processor::clearPendingParameters() noexcept {
+    pending_parameter_set_.fill(false);
+}
+
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
@@ -161,10 +332,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     if (data.numSamples == 0) {
-        if (data.inputEvents == nullptr) {
-            return Steinberg::kResultOk;
-        }
-        return data.inputEvents->getEventCount() == 0
+        // VST3 explicitly permits parameter flushing without audio buffers.
+        // Do not invent a one-sample DSP block: retain validated control state
+        // and feed it into the next real block through the portable event path.
+        return stageFlushParameters(data)
                    ? Steinberg::kResultOk
                    : Steinberg::kResultFalse;
     }
@@ -206,7 +377,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultFalse;
     };
 
-    if (!translateEvents(data, total_frames)) {
+    if (!translateEvents(data, total_frames) ||
+        !appendPendingParameters() ||
+        !translateParameters(data, total_frames)) {
         return fail_closed(0U);
     }
 
@@ -238,6 +411,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         processed += chunk_frames;
     }
 
+    clearPendingParameters();
     output_bus.silenceFlags = 0;
     return Steinberg::kResultOk;
 }

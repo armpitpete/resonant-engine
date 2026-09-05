@@ -50,41 +50,19 @@ public:
     static constexpr std::uint32_t kMaximumBlockSize = 128;
     static constexpr resonant::ParameterId kExternalProbeLevel = 901;
 
-    inline static constexpr std::array<resonant::ParameterSpec, 11> kParameterSpecs{{
-        {resonant::BreathPipeVoice::kPitchHz, "Pitch", "Hz", 48.0F, 2'000.0F,
-         220.0F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.003, true},
-        {resonant::BreathPipeVoice::kPressure, "Pressure", "", 0.0F, 1.0F,
-         0.0F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.008, true},
-        {resonant::BreathPipeVoice::kTurbulence, "Turbulence", "", 0.0F, 1.0F,
-         0.25F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.012, true},
-        {resonant::BreathPipeVoice::kInteraction, "Interaction", "", 0.0F, 1.0F,
-         0.55F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.010, true},
-        {resonant::BreathPipeVoice::kDamping, "Damping", "", 0.0F, 1.0F,
-         0.12F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.012, true},
-        {resonant::BreathPipeVoice::kRegeneration, "Regeneration", "", 0.0F, 1.5F,
-         0.18F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.012, true},
-        {resonant::BreathPipeVoice::kFeedbackColor, "Feedback colour", "", 0.0F, 1.0F,
-         0.20F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.012, true},
-        {resonant::BreathPipeVoice::kNonlinearDrive, "Nonlinear drive", "", 0.0F, 1.0F,
-         0.30F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.010, true},
-        {resonant::BreathPipeVoice::kExternalAmount, "External excitation", "", 0.0F, 1.0F,
-         0.50F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.010, true},
-        {resonant::BreathPipeVoice::kTimbre, "Timbre", "", 0.0F, 1.0F,
-         0.25F, resonant::ParameterKind::Continuous, resonant::SmoothingMode::OnePole,
-         0.012, true},
-        {kExternalProbeLevel, "Lab external-audio probe", "", 0.0F, 1.0F,
-         0.0F, resonant::ParameterKind::Internal, resonant::SmoothingMode::None,
-         0.0, true},
-    }};
+    inline static constexpr auto kParameterSpecs = [] {
+        std::array<resonant::ParameterSpec,
+                   resonant::BreathPipeVoice::kParameterSpecs.size() + 1U> specs{};
+        for (std::size_t index = 0;
+             index < resonant::BreathPipeVoice::kParameterSpecs.size(); ++index) {
+            specs[index] = resonant::BreathPipeVoice::kParameterSpecs[index];
+        }
+        specs.back() = {
+            kExternalProbeLevel, "Lab external-audio probe", "", 0.0F, 1.0F,
+            0.0F, resonant::ParameterKind::Internal, resonant::SmoothingMode::None,
+            0.0, true};
+        return specs;
+    }();
 
     BreathPipeLabEngine() noexcept
         : voices_{{
