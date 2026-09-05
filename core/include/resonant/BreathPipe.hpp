@@ -374,6 +374,9 @@ public:
         nonlinear_drive_.reset(0.30F);
         external_amount_.reset(0.50F);
         timbre_.reset(0.25F);
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            persistent_parameter_values_[index] = kParameterSpecs[index].default_value;
+        }
         pending_trigger_ = 0.0F;
         last_returned_ = 0.0F;
         energy_.reset();
@@ -471,19 +474,13 @@ public:
     [[nodiscard]] Seed seed() const noexcept { return seed_; }
 
     [[nodiscard]] bool parameterTarget(ParameterId id, Sample& value) const noexcept {
-        switch (id) {
-        case kPitchHz: value = pitch_.target(); return true;
-        case kPressure: value = pressure_.target(); return true;
-        case kTurbulence: value = turbulence_.target(); return true;
-        case kInteraction: value = interaction_.target(); return true;
-        case kDamping: value = damping_.target(); return true;
-        case kRegeneration: value = regeneration_.target(); return true;
-        case kFeedbackColor: value = feedback_color_.target(); return true;
-        case kNonlinearDrive: value = nonlinear_drive_.target(); return true;
-        case kExternalAmount: value = external_amount_.target(); return true;
-        case kTimbre: value = timbre_.target(); return true;
-        default: return false;
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            if (kParameterSpecs[index].id == id) {
+                value = persistent_parameter_values_[index];
+                return true;
+            }
         }
+        return false;
     }
 
     // State recall is a non-realtime lifecycle operation. It deliberately
@@ -513,69 +510,77 @@ public:
     }
 
 private:
-    void resetParameterTarget(ParameterId target, Sample value) noexcept {
+    void applyPersistentParameter(ParameterId target,
+                                  Sample value,
+                                  bool hard_reset) noexcept {
+        Sample applied = value;
+        ParameterSmoother* smoother = nullptr;
+
         switch (target) {
-        case kPitchHz: pitch_.reset(resonator_.clampTuning(value)); break;
-        case kPressure: pressure_.reset(clampFinite(value, 0.0F, 1.0F)); break;
+        case kPitchHz:
+            applied = resonator_.clampTuning(value);
+            smoother = &pitch_;
+            break;
+        case kPressure:
+            applied = clampFinite(value, 0.0F, 1.0F);
+            smoother = &pressure_;
+            break;
         case kTurbulence:
-            turbulence_.reset(clampFinite(value, 0.0F, 1.0F, 0.25F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.25F);
+            smoother = &turbulence_;
             break;
         case kInteraction:
-            interaction_.reset(clampFinite(value, 0.0F, 1.0F, 0.55F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.55F);
+            smoother = &interaction_;
             break;
-        case kDamping: damping_.reset(clampFinite(value, 0.0F, 1.0F, 0.12F)); break;
+        case kDamping:
+            applied = clampFinite(value, 0.0F, 1.0F, 0.12F);
+            smoother = &damping_;
+            break;
         case kRegeneration:
-            regeneration_.reset(clampFinite(value, 0.0F, 1.5F, 0.18F));
+            applied = clampFinite(value, 0.0F, 1.5F, 0.18F);
+            smoother = &regeneration_;
             break;
         case kFeedbackColor:
-            feedback_color_.reset(clampFinite(value, 0.0F, 1.0F, 0.20F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.20F);
+            smoother = &feedback_color_;
             break;
         case kNonlinearDrive:
-            nonlinear_drive_.reset(clampFinite(value, 0.0F, 1.0F, 0.30F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.30F);
+            smoother = &nonlinear_drive_;
             break;
         case kExternalAmount:
-            external_amount_.reset(clampFinite(value, 0.0F, 1.0F, 0.50F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.50F);
+            smoother = &external_amount_;
             break;
-        case kTimbre: timbre_.reset(clampFinite(value, 0.0F, 1.0F, 0.25F)); break;
-        default: break;
+        case kTimbre:
+            applied = clampFinite(value, 0.0F, 1.0F, 0.25F);
+            smoother = &timbre_;
+            break;
+        default:
+            return;
+        }
+
+        if (hard_reset) {
+            smoother->reset(applied);
+        } else {
+            smoother->setTarget(applied);
+        }
+
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            if (kParameterSpecs[index].id == target) {
+                persistent_parameter_values_[index] = applied;
+                return;
+            }
         }
     }
 
+    void resetParameterTarget(ParameterId target, Sample value) noexcept {
+        applyPersistentParameter(target, value, true);
+    }
+
     void handleParameter(ParameterId target, Sample value) noexcept {
-        switch (target) {
-        case kPitchHz:
-            pitch_.setTarget(resonator_.clampTuning(value));
-            break;
-        case kPressure:
-            pressure_.setTarget(clampFinite(value, 0.0F, 1.0F));
-            break;
-        case kTurbulence:
-            turbulence_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.25F));
-            break;
-        case kInteraction:
-            interaction_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.55F));
-            break;
-        case kDamping:
-            damping_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.12F));
-            break;
-        case kRegeneration:
-            regeneration_.setTarget(clampFinite(value, 0.0F, 1.5F, 0.18F));
-            break;
-        case kFeedbackColor:
-            feedback_color_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.20F));
-            break;
-        case kNonlinearDrive:
-            nonlinear_drive_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.30F));
-            break;
-        case kExternalAmount:
-            external_amount_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.50F));
-            break;
-        case kTimbre:
-            timbre_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.25F));
-            break;
-        default:
-            break;
-        }
+        applyPersistentParameter(target, value, false);
     }
 
     Seed seed_{kDefaultSeed};
@@ -591,6 +596,7 @@ private:
     ParameterSmoother nonlinear_drive_{};
     ParameterSmoother external_amount_{};
     ParameterSmoother timbre_{};
+    std::array<Sample, kParameterSpecs.size()> persistent_parameter_values_{};
     EnergyMonitor energy_{};
     Sample pending_trigger_{0.0F};
     Sample last_returned_{0.0F};
