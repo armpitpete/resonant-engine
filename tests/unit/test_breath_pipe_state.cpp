@@ -178,6 +178,21 @@ void testCaptureAlterRestoreAndFailureAtomicity() {
     check(equalState(captured, desired),
           "capture returns restored parameter targets");
 
+    voice.handleEvent({0U, resonant::EventType::Pitch,
+                       0U, 0U, 880.0F, 0.0F});
+    voice.handleEvent({0U, resonant::EventType::Pressure,
+                       0U, 0U, 0.05F, 0.0F});
+    voice.handleEvent({0U, resonant::EventType::PerNoteExpression,
+                       0U, 0U, 0.02F, 0.0F});
+    resonant::BreathPipeState after_expression{};
+    check(resonant::captureBreathPipeState(voice, after_expression),
+          "capture state after transient performance expression");
+    check(equalState(after_expression, desired),
+          "pitch pressure and per-note expression do not alter persistent state");
+
+    check(resonant::restoreBreathPipeState(voice, captured),
+          "restore after transient performance expression");
+
     voice.handleEvent({0U, resonant::EventType::ParameterChange,
                        resonant::BreathPipeVoice::kPressure, 0U, 0.1F, 0.0F});
     voice.handleEvent({0U, resonant::EventType::ParameterChange,
