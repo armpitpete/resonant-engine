@@ -2,6 +2,7 @@
 
 #include "hosts/vst3/CoreAdapter.hpp"
 #include "hosts/vst3/EventTranslator.hpp"
+#include "hosts/vst3/StateAdapter.hpp"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
 #include <array>
@@ -22,6 +23,8 @@ public:
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API process(
         Steinberg::Vst::ProcessData& data) override;
+    Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
+    Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API canProcessSampleSize(
         Steinberg::int32 symbolic_sample_size) override;
 
@@ -33,9 +36,11 @@ private:
     [[nodiscard]] bool stageFlushParameters(
         Steinberg::Vst::ProcessData& data) noexcept;
     [[nodiscard]] bool appendPendingParameters() noexcept;
+    [[nodiscard]] bool capturePortableState(BreathPipeState& state) const noexcept;
     void clearPendingParameters() noexcept;
 
     BreathPipeCoreAdapter adapter_{};
+    BreathPipeState state_cache_{defaultBreathPipeState()};
     HostEventTranslator event_translator_{};
     FixedEventBuffer<kMaxEventsPerBlock> chunk_events_{};
     std::array<Sample, BreathPipeVoice::kParameterSpecs.size()>
