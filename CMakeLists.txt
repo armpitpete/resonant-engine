@@ -168,6 +168,7 @@ if(RESONANT_ENGINE_BUILD_TESTS)
             PRIVATE
                 ResonantEngine::core
                 sdk
+                sdk_hosting
         )
         target_compile_features(
             resonant_vst3_processor_flush_tests PRIVATE cxx_std_20)
