@@ -6,6 +6,9 @@ on:
       - "CMakeLists.txt"
       - "core/include/resonant/BreathPipe.hpp"
       - "core/include/resonant/Parameter.hpp"
+      - "core/include/resonant/BreathPipeState.hpp"
+      - "tests/unit/test_vst3_processor_flush.cpp"
+      - "tests/unit/test_vst3_state.cpp"
       - "cmake/vst3_sdk.cmake"
       - "cmake/check_vst3_boundary.cmake"
       - "hosts/vst3/**"
@@ -46,10 +49,11 @@ jobs:
       - name: Build VST3 host
         run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
 
-      - name: Run VST3 zero-sample flush regression
+      - name: Run VST3 control and state regressions
         run: |
           cmake --build build-vst3-linux --target resonant_vst3_processor_flush_tests --parallel 2
-          ctest --test-dir build-vst3-linux -R resonant_vst3_processor_flush_tests --output-on-failure
+          cmake --build build-vst3-linux --target resonant_vst3_state_tests --parallel 2
+          ctest --test-dir build-vst3-linux -R "resonant_vst3_(processor_flush|state)_tests" --output-on-failure
 
       - name: Build Steinberg validator
         run: cmake --build build-vst3-linux --target validator --parallel 2
