@@ -2,6 +2,7 @@
 
 #include "hosts/vst3/ParameterMapping.hpp"
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/vst/vstparameters.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -32,18 +33,20 @@ public:
             copyAscii(units, spec.unit);
 
             const auto flags = Steinberg::Vst::ParameterInfo::kCanAutomate;
-            const auto default_normalized =
-                static_cast<Steinberg::Vst::ParamValue>(spec.normalize(spec.default_value));
-            const auto tag = static_cast<Steinberg::int32>(
+            const auto tag = static_cast<Steinberg::Vst::ParamID>(
                 HostParameterMapping::toHostId(spec.id));
 
-            if (parameters.addParameter(
-                    title,
-                    spec.unit.empty() ? nullptr : units,
-                    0,
-                    default_normalized,
-                    flags,
-                    tag) == nullptr) {
+            auto* parameter = new Steinberg::Vst::RangeParameter(
+                title,
+                tag,
+                spec.unit.empty() ? nullptr : units,
+                static_cast<Steinberg::Vst::ParamValue>(spec.minimum),
+                static_cast<Steinberg::Vst::ParamValue>(spec.maximum),
+                static_cast<Steinberg::Vst::ParamValue>(spec.default_value),
+                0,
+                flags);
+            if (parameters.addParameter(parameter) == nullptr) {
+                parameter->release();
                 return Steinberg::kResultFalse;
             }
         }
