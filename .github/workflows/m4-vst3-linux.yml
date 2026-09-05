@@ -37,7 +37,7 @@ jobs:
         run: >
           cmake -S . -B build-vst3-linux
           -DRESONANT_ENGINE_BUILD_VST3=ON
-          -DRESONANT_ENGINE_BUILD_TESTS=OFF
+          -DRESONANT_ENGINE_BUILD_TESTS=ON
           -DRESONANT_ENGINE_BUILD_RENDER=OFF
           -DRESONANT_ENGINE_WARNINGS_AS_ERRORS=ON
           -DCMAKE_BUILD_TYPE=Release
@@ -45,6 +45,36 @@ jobs:
 
       - name: Build VST3 host
         run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
+
+      - name: Run VST3 zero-sample flush regression
+        run: |
+          cmake --build build-vst3-linux --target resonant_vst3_processor_flush_tests --parallel 2
+          ctest --test-dir build-vst3-linux -R '^resonant_vst3_processor_flush_tests
+      - name: Validate VST3 host
+        shell: bash
+        run: |
+          validator="build-vst3-linux/bin/Release/validator"
+          plugin="build-vst3-linux/VST3/Release/ResonantEngineBreathPipe.vst3"
+
+          test -x "$validator"
+          test -d "$plugin"
+
+          echo "Validator: $validator"
+          echo "Plugin: $plugin"
+          file "$validator"
+          find "$plugin" -maxdepth 3 -type f -print
+
+          "$validator" --selftest | tee validator-selftest.log
+          grep -F "0 failed test(s)." validator-selftest.log
+
+          set +e
+          "$validator" "$plugin" >validator.log 2>&1
+          validator_status=$?
+          set -e
+          cat validator.log
+          test "$validator_status" -eq 0
+          grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
+ --output-on-failure
 
       - name: Build Steinberg validator
         run: cmake --build build-vst3-linux --target validator --parallel 2
