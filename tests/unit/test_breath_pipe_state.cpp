@@ -23,6 +23,32 @@ void check(bool condition, std::string_view name) {
 }
 
 using Encoded = std::array<std::byte, resonant::BreathPipeStateCodec::kEncodedSize>;
+using RenderBits = std::array<std::uint32_t, 1024U>;
+
+#if defined(_MSC_VER)
+#define RESONANT_TEST_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define RESONANT_TEST_NOINLINE __attribute__((noinline))
+#else
+#define RESONANT_TEST_NOINLINE
+#endif
+
+RESONANT_TEST_NOINLINE RenderBits renderRecalledVoice(
+    resonant::BreathPipeVoice& voice,
+    const resonant::BreathPipeState& state) {
+    RenderBits bits{};
+    check(resonant::restoreBreathPipeState(voice, state),
+          "restore state before deterministic render");
+    voice.handleEvent(
+        {0U, resonant::EventType::NoteOn, 0U, 1U, 0.8F, 0.0F});
+    std::array<resonant::Sample, 1U> output{};
+    for (std::size_t frame = 0U; frame < bits.size(); ++frame) {
+        check(voice.processSample({}, output),
+              "recalled deterministic voice remains finite");
+        bits[frame] = std::bit_cast<std::uint32_t>(output[0]);
+    }
+    return bits;
+}
 
 void writeU32(Encoded& bytes, std::size_t offset, std::uint32_t value) {
     for (std::size_t byte = 0U; byte < 4U; ++byte) {
@@ -71,6 +97,15 @@ void testRoundTripAndDeterministicBytes() {
     check(resonant::BreathPipeStateCodec::encode(state, second),
           "encode identical portable state again");
     check(first == second, "identical state produces identical bytes");
+
+    constexpr std::array<std::uint8_t, 8U> expected_seed_bytes{{
+        0xf0U, 0xdeU, 0xbcU, 0x9aU, 0x78U, 0x56U, 0x34U, 0x12U,
+    }};
+    for (std::size_t index = 0U; index < expected_seed_bytes.size(); ++index) {
+        check(std::to_integer<std::uint8_t>(first[8U + index]) ==
+                  expected_seed_bytes[index],
+              "deterministic seed is encoded little-endian");
+    }
 
     resonant::BreathPipeState decoded{};
     check(resonant::BreathPipeStateCodec::decode(first, decoded),
@@ -232,28 +267,14 @@ void testDeterministicRenderAfterRestore() {
     check(voice.prepare(spec), "prepare deterministic recall voice");
 
     const auto state = nonDefaultState();
-    auto render_pass = [&](const resonant::BreathPipeState& recalled) {
-        std::array<std::uint32_t, 1024U> bits{};
-        check(resonant::restoreBreathPipeState(voice, recalled),
-              "restore state before deterministic render");
-        voice.handleEvent(
-            {0U, resonant::EventType::NoteOn, 0U, 1U, 0.8F, 0.0F});
-        std::array<resonant::Sample, 1U> output{};
-        for (std::size_t frame = 0U; frame < bits.size(); ++frame) {
-            check(voice.processSample({}, output),
-                  "recalled deterministic voice remains finite");
-            bits[frame] = std::bit_cast<std::uint32_t>(output[0]);
-        }
-        return bits;
-    };
 
     // This is the actual recall contract: after arbitrary prior history,
     // loading the same persistent model state must reset transient DSP/RNG
-    // progress and reproduce the same trajectory. It intentionally avoids
-    // comparing two separately inlined direct processSample call sites,
-    // because legal Release FP contraction can give those call sites
-    // sub-ULP differences that a feedback resonator later amplifies.
-    const auto first = render_pass(state);
+    // progress and reproduce the same trajectory. renderRecalledVoice() is
+    // deliberately noinline on the supported native compilers so both passes
+    // execute the same compiled floating-point path instead of two separately
+    // optimized direct processSample call sites.
+    const auto first = renderRecalledVoice(voice, state);
     voice.handleEvent({0U, resonant::EventType::ParameterChange,
                        resonant::BreathPipeVoice::kPressure, 0U, 0.1F, 0.0F});
     std::array<resonant::Sample, 1U> disturbed{};
@@ -261,16 +282,18 @@ void testDeterministicRenderAfterRestore() {
         check(voice.processSample({}, disturbed),
               "intervening state remains finite");
     }
-    const auto second = render_pass(state);
+    const auto second = renderRecalledVoice(voice, state);
     check(first == second,
           "save reload reproduces bit-identical deterministic trajectory");
 
     auto different_seed = state;
     ++different_seed.seed;
-    const auto third = render_pass(different_seed);
+    const auto third = renderRecalledVoice(voice, different_seed);
     check(first != third,
           "serialized seed controls the deterministic turbulence trajectory");
 }
+
+#undef RESONANT_TEST_NOINLINE
 
 } // namespace
 
