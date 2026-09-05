@@ -33,6 +33,7 @@ void writeU32(Encoded& bytes, std::size_t offset, std::uint32_t value) {
 
 resonant::BreathPipeState nonDefaultState() {
     auto state = resonant::defaultBreathPipeState();
+    state.seed = 0x123456789abcdef0ULL;
     state.parameters[0].value = 330.0F;
     state.parameters[1].value = 0.72F;
     state.parameters[2].value = 0.61F;
@@ -48,7 +49,7 @@ resonant::BreathPipeState nonDefaultState() {
 
 bool equalState(const resonant::BreathPipeState& a,
                 const resonant::BreathPipeState& b) {
-    if (a.version != b.version) {
+    if (a.version != b.version || a.seed != b.seed) {
         return false;
     }
     for (std::size_t index = 0U; index < a.parameters.size(); ++index) {
@@ -176,7 +177,9 @@ void testCaptureAlterRestoreAndFailureAtomicity() {
     check(resonant::captureBreathPipeState(voice, captured),
           "capture restored portable state");
     check(equalState(captured, desired),
-          "capture returns restored parameter targets");
+          "capture returns restored persistent model state");
+    check(voice.seed() == desired.seed,
+          "state restore applies deterministic voice seed");
 
     voice.handleEvent({0U, resonant::EventType::Pitch,
                        0U, 0U, 880.0F, 0.0F});
@@ -224,29 +227,49 @@ void testCaptureAlterRestoreAndFailureAtomicity() {
 }
 
 void testDeterministicRenderAfterRestore() {
-    resonant::BreathPipeVoice a{991U};
-    resonant::BreathPipeVoice b{991U};
+    resonant::BreathPipeVoice voice{17U};
     const resonant::ProcessSpec spec{48'000.0, 128U, 0U, 1U};
-    check(a.prepare(spec) && b.prepare(spec),
-          "prepare deterministic recall voices");
+    check(voice.prepare(spec), "prepare deterministic recall voice");
 
     const auto state = nonDefaultState();
-    check(resonant::restoreBreathPipeState(a, state) &&
-              resonant::restoreBreathPipeState(b, state),
-          "restore identical state into fresh voices");
+    auto render_pass = [&](const resonant::BreathPipeState& recalled) {
+        std::array<std::uint32_t, 1024U> bits{};
+        check(resonant::restoreBreathPipeState(voice, recalled),
+              "restore state before deterministic render");
+        voice.handleEvent(
+            {0U, resonant::EventType::NoteOn, 0U, 1U, 0.8F, 0.0F});
+        std::array<resonant::Sample, 1U> output{};
+        for (std::size_t frame = 0U; frame < bits.size(); ++frame) {
+            check(voice.processSample({}, output),
+                  "recalled deterministic voice remains finite");
+            bits[frame] = std::bit_cast<std::uint32_t>(output[0]);
+        }
+        return bits;
+    };
 
-    a.handleEvent({0U, resonant::EventType::NoteOn, 0U, 1U, 0.8F, 0.0F});
-    b.handleEvent({0U, resonant::EventType::NoteOn, 0U, 1U, 0.8F, 0.0F});
-
-    std::array<resonant::Sample, 1U> out_a{};
-    std::array<resonant::Sample, 1U> out_b{};
-    for (std::size_t frame = 0U; frame < 1024U; ++frame) {
-        check(a.processSample({}, out_a) && b.processSample({}, out_b),
-              "recalled deterministic voices remain finite");
-        check(std::bit_cast<std::uint32_t>(out_a[0]) ==
-                  std::bit_cast<std::uint32_t>(out_b[0]),
-              "identically restored voices render bit-identically");
+    // This is the actual recall contract: after arbitrary prior history,
+    // loading the same persistent model state must reset transient DSP/RNG
+    // progress and reproduce the same trajectory. It intentionally avoids
+    // comparing two separately inlined direct processSample call sites,
+    // because legal Release FP contraction can give those call sites
+    // sub-ULP differences that a feedback resonator later amplifies.
+    const auto first = render_pass(state);
+    voice.handleEvent({0U, resonant::EventType::ParameterChange,
+                       resonant::BreathPipeVoice::kPressure, 0U, 0.1F, 0.0F});
+    std::array<resonant::Sample, 1U> disturbed{};
+    for (std::size_t frame = 0U; frame < 257U; ++frame) {
+        check(voice.processSample({}, disturbed),
+              "intervening state remains finite");
     }
+    const auto second = render_pass(state);
+    check(first == second,
+          "save reload reproduces bit-identical deterministic trajectory");
+
+    auto different_seed = state;
+    ++different_seed.seed;
+    const auto third = render_pass(different_seed);
+    check(first != third,
+          "serialized seed controls the deterministic turbulence trajectory");
 }
 
 } // namespace

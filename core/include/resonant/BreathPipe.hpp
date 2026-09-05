@@ -39,6 +39,11 @@ public:
         jet_highpass_ = 0.0F;
     }
 
+    void setSeed(Seed seed) noexcept {
+        seed_ = seed;
+        reset();
+    }
+
     struct Input {
         Sample external_audio{0.0F};
         Sample external_amount{0.0F};
@@ -362,7 +367,7 @@ public:
     }
 
     void reset() noexcept {
-        exciter_.reset();
+        exciter_.setSeed(seed_);
         resonator_.reset();
         pitch_.reset(resonator_.clampTuning(220.0F));
         pressure_.reset(0.0F);
@@ -488,7 +493,8 @@ public:
     // parameter targets as hard state so recall cannot depend on whatever
     // audio the instance processed before the load. Ordinary automation still
     // uses handleParameter() and the existing core-owned smoothers.
-    [[nodiscard]] bool restoreParameterTargets(
+    [[nodiscard]] bool restorePersistentState(
+        Seed seed,
         std::span<const Sample> values) noexcept {
         if (values.size() != kParameterSpecs.size()) {
             return false;
@@ -502,6 +508,7 @@ public:
             }
         }
 
+        seed_ = seed;
         reset();
         for (std::size_t index = 0U; index < values.size(); ++index) {
             resetParameterTarget(kParameterSpecs[index].id, values[index]);

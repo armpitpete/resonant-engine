@@ -193,6 +193,7 @@ private:
 
 resonant::BreathPipeState nonDefaultState() {
     auto state = resonant::defaultBreathPipeState();
+    state.seed = 0x0ddc0ffeebadf00dULL;
     state.parameters[0].value = 440.0F;
     state.parameters[1].value = 0.69F;
     state.parameters[2].value = 0.38F;
@@ -270,6 +271,8 @@ void testPreSetupLoadAndPartialStreams() {
           "getState supports partial stream writes");
     check(resonant::validBreathPipeState(recalled),
           "recalled processor state is portable and valid");
+    check(recalled.seed == desired.seed,
+          "pre-setup deterministic seed survives setupProcessing");
     for (std::size_t index = 0U; index < desired.parameters.size(); ++index) {
         check(std::bit_cast<std::uint32_t>(desired.parameters[index].value) ==
                   std::bit_cast<std::uint32_t>(recalled.parameters[index].value),

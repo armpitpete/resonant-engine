@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 NEXT**
+Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION CANDIDATE, FINAL ACCEPTANCE PENDING**
 
 ## Goal
 
@@ -114,13 +114,14 @@ M4.5 is complete. M4.6 proceeds from merged `main` and is limited to portable st
 - [x] malformed/unknown state fails safely;
 - [x] no VST3-specific serialized representation becomes the canonical engine state.
 
-The M4.6 implementation candidate defines a fixed **88-byte** portable Breath Pipe
+The M4.6 implementation candidate defines a fixed **96-byte** portable Breath Pipe
 state payload in `resonant/BreathPipeState.hpp`. The canonical payload is
 host-neutral and consists of:
 
 - four-byte magic `REBP`;
 - little-endian format version `1`;
 - canonical parameter count `10`;
+- little-endian 64-bit deterministic per-voice seed;
 - ten ordered entries of stable 32-bit `ParameterId` plus IEEE-754 float32
   native value.
 
@@ -130,12 +131,13 @@ non-finite values, out-of-range values, truncation and extra bytes. Decode and
 application are transactional: invalid state does not partially mutate the
 previous state.
 
-Only persistent portable parameter state is serialized. Transient note
-identity, note pitch/velocity expression, resonator history, exciter/RNG
-progress, energy diagnostics and audio-thread buffers are deliberately not
-persisted. Loading state clears transient DSP history and hard-restores the
-saved parameter targets; ordinary automation continues to use the existing
-core-owned smoothing path.
+Persistent portable model state consists of the deterministic per-voice seed
+plus canonical parameter state. Transient note identity, note pitch/velocity
+expression, resonator history, current RNG progress, energy diagnostics and
+audio-thread buffers are deliberately not persisted. Loading state clears
+transient DSP/RNG history, restores the saved seed and hard-restores the saved
+parameter targets; ordinary automation continues to use the existing core-owned
+smoothing path.
 
 The portable Breath Pipe model keeps persistent `ParameterChange` state
 separate from transient pitch, pressure and per-note expression so saving a
@@ -147,7 +149,23 @@ and `Controller::setComponentState()` are bounded Steinberg `IBStream`
 adapters around the same portable codec; no VST3 type appears in the canonical
 state representation.
 
-Acceptance remains pending exact-head Oracle, Linux VST3 state regression,
+The first exact-head Release regression used two separately inlined direct
+`BreathPipeVoice::processSample()` call sites and demanded bit identity between
+them. GNU 13 legally contracted floating-point operations differently between
+those optimized call sites; the sub-ULP divergence was then amplified by the
+feedback resonator. A diagnostic build with `-ffp-contract=off` made that
+otherwise unchanged test pass 38/38, while Debug, sanitizers and the Release
+VST3 two-processor test were already deterministic. The diagnostic compiler
+flag is not retained. The permanent core regression instead proves the actual
+recall contract: save/render, disturb, reload, render reproduces the exact
+trajectory on the same model path, while the separate VST3 regression continues
+to prove two-processor deterministic recall.
+
+Frozen M3 also requires independent deterministic per-voice seeds. M4.6
+therefore serializes the seed as persistent host-neutral model state rather than
+relying on the VST3 wrapper's default seed.
+
+Acceptance remains pending fresh exact-head Oracle, Linux VST3 state regression,
 Steinberg validator and final hostile-review evidence.
 
 ### M4.7 — External excitation

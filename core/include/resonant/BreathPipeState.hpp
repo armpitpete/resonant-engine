@@ -21,6 +21,7 @@ struct BreathPipeState {
     static constexpr std::uint16_t kCurrentVersion = 1U;
 
     std::uint16_t version{kCurrentVersion};
+    Seed seed{kDefaultSeed};
     std::array<BreathPipeStateEntry, BreathPipeVoice::kParameterSpecs.size()>
         parameters{};
 };
@@ -59,6 +60,7 @@ struct BreathPipeState {
     const BreathPipeVoice& voice,
     BreathPipeState& state) noexcept {
     auto captured = defaultBreathPipeState();
+    captured.seed = voice.seed();
     for (std::size_t index = 0U; index < captured.parameters.size(); ++index) {
         Sample value = 0.0F;
         const auto id = BreathPipeVoice::kParameterSpecs[index].id;
@@ -85,7 +87,7 @@ struct BreathPipeState {
     for (std::size_t index = 0U; index < state.parameters.size(); ++index) {
         values[index] = state.parameters[index].value;
     }
-    return voice.restoreParameterTargets(values);
+    return voice.restorePersistentState(state.seed, values);
 }
 
 class BreathPipeStateCodec {
@@ -93,7 +95,7 @@ public:
     static constexpr std::array<std::byte, 4U> kMagic{
         std::byte{0x52U}, std::byte{0x45U},
         std::byte{0x42U}, std::byte{0x50U}};
-    static constexpr std::size_t kHeaderSize = 8U;
+    static constexpr std::size_t kHeaderSize = 16U;
     static constexpr std::size_t kEntrySize = 8U;
     static constexpr std::size_t kEncodedSize =
         kHeaderSize + BreathPipeVoice::kParameterSpecs.size() * kEntrySize;
@@ -116,6 +118,7 @@ public:
         writeU16(destination, 4U, state.version);
         writeU16(destination, 6U,
                  static_cast<std::uint16_t>(state.parameters.size()));
+        writeU64(destination, 8U, state.seed);
 
         std::size_t offset = kHeaderSize;
         for (const auto& entry : state.parameters) {
@@ -148,6 +151,7 @@ public:
                 static_cast<std::uint16_t>(decoded.parameters.size())) {
             return false;
         }
+        decoded.seed = readU64(source, 8U);
 
         std::size_t offset = kHeaderSize;
         for (std::size_t index = 0U;
@@ -196,6 +200,15 @@ private:
         }
     }
 
+    static void writeU64(std::span<std::byte> bytes,
+                         std::size_t offset,
+                         std::uint64_t value) noexcept {
+        for (std::size_t byte = 0U; byte < 8U; ++byte) {
+            bytes[offset + byte] = static_cast<std::byte>(
+                static_cast<std::uint8_t>((value >> (8U * byte)) & 0xffU));
+        }
+    }
+
     [[nodiscard]] static std::uint16_t readU16(
         std::span<const std::byte> bytes,
         std::size_t offset) noexcept {
@@ -216,8 +229,20 @@ private:
         }
         return value;
     }
+
+    [[nodiscard]] static std::uint64_t readU64(
+        std::span<const std::byte> bytes,
+        std::size_t offset) noexcept {
+        std::uint64_t value = 0U;
+        for (std::size_t byte = 0U; byte < 8U; ++byte) {
+            value |= static_cast<std::uint64_t>(
+                         std::to_integer<std::uint8_t>(bytes[offset + byte]))
+                     << (8U * byte);
+        }
+        return value;
+    }
 };
 
-static_assert(BreathPipeStateCodec::kEncodedSize == 88U);
+static_assert(BreathPipeStateCodec::kEncodedSize == 96U);
 
 } // namespace resonant
