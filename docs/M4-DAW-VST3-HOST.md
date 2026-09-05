@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION CANDIDATE, FINAL ACCEPTANCE PENDING**
+Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION ACCEPTED; PROTECTED MERGE NOT YET AUTHORIZED**
 
 ## Goal
 
@@ -114,7 +114,7 @@ M4.5 is complete. M4.6 proceeds from merged `main` and is limited to portable st
 - [x] malformed/unknown state fails safely;
 - [x] no VST3-specific serialized representation becomes the canonical engine state.
 
-The M4.6 implementation candidate defines a fixed **96-byte** portable Breath Pipe
+M4.6 defines a fixed **96-byte** portable Breath Pipe
 state payload in `resonant/BreathPipeState.hpp`. The canonical payload is
 host-neutral and consists of:
 
@@ -184,8 +184,26 @@ Frozen M3 also requires independent deterministic per-voice seeds. M4.6
 therefore serializes the seed as persistent host-neutral model state rather than
 relying on the VST3 wrapper's default seed.
 
-Acceptance remains pending fresh exact-head Oracle, Linux VST3 state regression,
-Steinberg validator and final hostile-review evidence.
+Implementation acceptance completed at exact head
+`58796bfc502633e6730f5049a55054b664071181`. CI #218 passed browser/native-WASM
+parity; PR Exact Head #78 passed native Debug, native Release, ASan+UBSan,
+no-exceptions/no-RTTI portability and M3 native/WASM parity; M4 VST3 Linux Exact
+Head #41 passed the dedicated zero-sample flush and portable-state regressions,
+including concurrent mixed-generation snapshot rejection. Steinberg validator
+reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of that implementation head also passed: state calls do not
+read or mutate live DSP concurrently with `process()`; `getState()` sees one
+coherent atomic-mirror generation; `setState()` publishes a validated request
+for audio-boundary application; the audio thread only performs nonblocking
+try-once writer arbitration and never spins or takes a mutex; no VST3-specific
+DSP, Breath Pipe retuning or host-specific serialized canonical state was
+introduced.
+
+The following reconciliation changes documentation only. It does not alter core,
+VST3 implementation, CMake, SDK pin, tests or workflow behaviour. The PR remains
+subject to its final exact-head self-hosted gate and protected merge
+authorization.
 
 ### M4.7 — External excitation
 
