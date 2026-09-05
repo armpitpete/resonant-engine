@@ -2,6 +2,7 @@
 #include "hosts/vst3/Processor.hpp"
 
 #include "public.sdk/source/vst/hosting/parameterchanges.h"
+#include "pluginterfaces/vst/ivstevents.h"
 
 #include <algorithm>
 #include <array>
@@ -152,6 +153,44 @@ private:
     std::size_t max_chunk_{256U};
 };
 
+class SingleEventList final : public Steinberg::Vst::IEventList {
+public:
+    explicit SingleEventList(const Steinberg::Vst::Event& event) noexcept
+        : event_(event) {}
+
+    Steinberg::tresult PLUGIN_API queryInterface(
+        const Steinberg::TUID,
+        void** object) override {
+        if (object != nullptr) {
+            *object = nullptr;
+        }
+        return Steinberg::kNoInterface;
+    }
+
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1U; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1U; }
+
+    Steinberg::int32 PLUGIN_API getEventCount() override { return 1; }
+
+    Steinberg::tresult PLUGIN_API getEvent(
+        Steinberg::int32 index,
+        Steinberg::Vst::Event& event) override {
+        if (index != 0) {
+            return Steinberg::kResultFalse;
+        }
+        event = event_;
+        return Steinberg::kResultOk;
+    }
+
+    Steinberg::tresult PLUGIN_API addEvent(
+        Steinberg::Vst::Event&) override {
+        return Steinberg::kNotImplemented;
+    }
+
+private:
+    Steinberg::Vst::Event event_{};
+};
+
 resonant::BreathPipeState nonDefaultState() {
     auto state = resonant::defaultBreathPipeState();
     state.parameters[0].value = 440.0F;
@@ -198,7 +237,8 @@ Steinberg::tresult processBlock(
     resonant::vst3::Processor& processor,
     std::array<float, 128U>& left,
     std::array<float, 128U>& right,
-    Steinberg::Vst::IParameterChanges* changes = nullptr) {
+    Steinberg::Vst::IParameterChanges* changes = nullptr,
+    Steinberg::Vst::IEventList* events = nullptr) {
     std::array<float*, 2U> channels{{left.data(), right.data()}};
     Steinberg::Vst::AudioBusBuffers output{};
     output.numChannels = 2;
@@ -211,6 +251,7 @@ Steinberg::tresult processBlock(
     data.numOutputs = 1;
     data.outputs = &output;
     data.inputParameterChanges = changes;
+    data.inputEvents = events;
     return processor.process(data);
 }
 
@@ -245,6 +286,32 @@ void testAlterRestoreActivationAndPendingFlush() {
     loadEncoded(saved_stream, saved);
     check(processor.setState(&saved_stream) == Steinberg::kResultOk,
           "load saved non-default state");
+
+    Steinberg::Vst::Event note{};
+    note.busIndex = 0;
+    note.sampleOffset = 0;
+    note.type = Steinberg::Vst::Event::kNoteOnEvent;
+    note.noteOn.channel = 0;
+    note.noteOn.pitch = 60;
+    note.noteOn.tuning = 0.0F;
+    note.noteOn.velocity = 0.2F;
+    note.noteOn.noteId = 17;
+    SingleEventList note_events{note};
+
+    std::array<float, 128U> note_left{};
+    std::array<float, 128U> note_right{};
+    check(processBlock(processor, note_left, note_right, nullptr, &note_events) ==
+              Steinberg::kResultOk,
+          "process note performance over saved parameter state");
+
+    resonant::BreathPipeState after_note{};
+    check(readProcessorState(processor, after_note),
+          "capture state after transient note performance");
+    check(std::abs(after_note.parameters[0].value - saved.parameters[0].value) <
+              1.0e-7F &&
+              std::abs(after_note.parameters[1].value - saved.parameters[1].value) <
+              1.0e-7F,
+          "note pitch and velocity do not overwrite persistent project state");
 
     Steinberg::Vst::ParameterChanges changes{1};
     Steinberg::int32 queue_index = 0;
