@@ -91,7 +91,8 @@ struct BreathPipeState {
 class BreathPipeStateCodec {
 public:
     static constexpr std::array<std::byte, 4U> kMagic{
-        std::byte{'R'}, std::byte{'E'}, std::byte{'B'}, std::byte{'P'}};
+        std::byte{0x52U}, std::byte{0x45U},
+        std::byte{0x42U}, std::byte{0x50U}};
     static constexpr std::size_t kHeaderSize = 8U;
     static constexpr std::size_t kEntrySize = 8U;
     static constexpr std::size_t kEncodedSize =
