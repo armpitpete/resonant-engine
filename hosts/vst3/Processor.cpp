@@ -1,8 +1,10 @@
 #include "hosts/vst3/Processor.hpp"
 
+#include "hosts/vst3/ParameterMapping.hpp"
 #include "hosts/vst3/PluginIds.hpp"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 
 #include <algorithm>
@@ -153,6 +155,74 @@ bool Processor::translateEvents(Steinberg::Vst::ProcessData& data,
     return true;
 }
 
+bool Processor::translateParameters(Steinberg::Vst::ProcessData& data,
+                                    std::uint32_t total_frames) noexcept {
+    if (data.inputParameterChanges == nullptr) {
+        return true;
+    }
+
+    const auto reject_block = [&]() noexcept {
+        event_translator_.abortBlock();
+        return false;
+    };
+
+    const auto queue_count = data.inputParameterChanges->getParameterCount();
+    if (queue_count < 0 ||
+        queue_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+        return reject_block();
+    }
+
+    for (Steinberg::int32 queue_index = 0;
+         queue_index < queue_count; ++queue_index) {
+        auto* queue = data.inputParameterChanges->getParameterData(queue_index);
+        if (queue == nullptr) {
+            return reject_block();
+        }
+
+        const auto host_id =
+            static_cast<HostParamId>(queue->getParameterId());
+        const auto* spec = HostParameterMapping::specForHostId(host_id);
+        const auto point_count = queue->getPointCount();
+        if (point_count < 0 ||
+            point_count > static_cast<Steinberg::int32>(kMaxEventsPerBlock)) {
+            return reject_block();
+        }
+
+        // Unknown, hidden, internal or topology parameters are not part of
+        // this portable host projection. Ignore their queues safely.
+        if (spec == nullptr) {
+            continue;
+        }
+
+        for (Steinberg::int32 point_index = 0;
+             point_index < point_count; ++point_index) {
+            Steinberg::int32 sample_offset = 0;
+            Steinberg::Vst::ParamValue normalized = 0.0;
+            if (queue->getPoint(point_index, sample_offset, normalized) !=
+                    Steinberg::kResultOk ||
+                sample_offset < 0 ||
+                sample_offset >= static_cast<Steinberg::int32>(total_frames)) {
+                return reject_block();
+            }
+
+            Sample native = 0.0F;
+            if (!HostParameterMapping::normalizedToNative(
+                    host_id, normalized, native) ||
+                !event_translator_.parameterChange(
+                    static_cast<std::uint32_t>(sample_offset),
+                    spec->id,
+                    native)) {
+                return reject_block();
+            }
+        }
+    }
+
+    if (!event_translator_.valid()) {
+        return reject_block();
+    }
+    return true;
+}
+
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
@@ -161,10 +231,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     if (data.numSamples == 0) {
-        if (data.inputEvents == nullptr) {
-            return Steinberg::kResultOk;
-        }
-        return data.inputEvents->getEventCount() == 0
+        const auto event_count =
+            data.inputEvents == nullptr ? 0 : data.inputEvents->getEventCount();
+        const auto parameter_count =
+            data.inputParameterChanges == nullptr
+                ? 0
+                : data.inputParameterChanges->getParameterCount();
+        return event_count == 0 && parameter_count == 0
                    ? Steinberg::kResultOk
                    : Steinberg::kResultFalse;
     }
@@ -206,7 +279,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultFalse;
     };
 
-    if (!translateEvents(data, total_frames)) {
+    if (!translateEvents(data, total_frames) ||
+        !translateParameters(data, total_frames)) {
         return fail_closed(0U);
     }
 
