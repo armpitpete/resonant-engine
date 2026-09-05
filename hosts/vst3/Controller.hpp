@@ -1,10 +1,12 @@
 #pragma once
 
 #include "hosts/vst3/ParameterMapping.hpp"
+#include "hosts/vst3/StateAdapter.hpp"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <string_view>
 
@@ -51,6 +53,35 @@ public:
             }
         }
 
+        return Steinberg::kResultOk;
+    }
+
+    Steinberg::tresult PLUGIN_API setComponentState(
+        Steinberg::IBStream* state) override {
+        BreathPipeState decoded{};
+        if (!PortableStateStreamAdapter::read(state, decoded)) {
+            return Steinberg::kResultFalse;
+        }
+
+        std::array<Steinberg::Vst::Parameter*,
+                   BreathPipeVoice::kParameterSpecs.size()> mapped{};
+        std::array<double, BreathPipeVoice::kParameterSpecs.size()> normalized{};
+
+        for (std::size_t index = 0U; index < decoded.parameters.size(); ++index) {
+            const auto host_id = HostParameterMapping::toHostId(
+                decoded.parameters[index].id);
+            mapped[index] = parameters.getParameter(
+                static_cast<Steinberg::Vst::ParamID>(host_id));
+            if (mapped[index] == nullptr) {
+                return Steinberg::kResultFalse;
+            }
+            normalized[index] = HostParameterMapping::nativeToNormalized(
+                host_id, decoded.parameters[index].value);
+        }
+
+        for (std::size_t index = 0U; index < mapped.size(); ++index) {
+            mapped[index]->setNormalized(normalized[index]);
+        }
         return Steinberg::kResultOk;
     }
 
