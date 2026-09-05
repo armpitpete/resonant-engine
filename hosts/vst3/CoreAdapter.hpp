@@ -26,11 +26,7 @@ public:
     }
 
     [[nodiscard]] bool reset() noexcept {
-        if (!prepared_) {
-            return false;
-        }
-        BreathPipeState state{};
-        return captureState(state) && restoreState(state);
+        return prepared_ && engine_.reset();
     }
 
     [[nodiscard]] bool captureState(BreathPipeState& state) const noexcept {
