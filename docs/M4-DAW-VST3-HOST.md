@@ -108,11 +108,46 @@ M4.5 is complete. M4.6 proceeds from merged `main` and is limited to portable st
 
 ### M4.6 — Portable state recall
 
-- [ ] define a versioned host-neutral Breath Pipe state representation;
-- [ ] VST3 getState/setState translates to that representation;
-- [ ] save/reload reproduces parameter/model state deterministically;
-- [ ] malformed/unknown state fails safely;
-- [ ] no VST3-specific serialized representation becomes the canonical engine state.
+- [x] define a versioned host-neutral Breath Pipe state representation;
+- [x] VST3 getState/setState translates to that representation;
+- [x] save/reload reproduces parameter/model state deterministically;
+- [x] malformed/unknown state fails safely;
+- [x] no VST3-specific serialized representation becomes the canonical engine state.
+
+The M4.6 implementation candidate defines a fixed **88-byte** portable Breath Pipe
+state payload in `resonant/BreathPipeState.hpp`. The canonical payload is
+host-neutral and consists of:
+
+- four-byte magic `REBP`;
+- little-endian format version `1`;
+- canonical parameter count `10`;
+- ten ordered entries of stable 32-bit `ParameterId` plus IEEE-754 float32
+  native value.
+
+The wire order is exactly `BreathPipeVoice::kParameterSpecs`. Version 1 rejects
+unknown/newer versions, wrong counts, reordered/unknown/duplicate IDs,
+non-finite values, out-of-range values, truncation and extra bytes. Decode and
+application are transactional: invalid state does not partially mutate the
+previous state.
+
+Only persistent portable parameter state is serialized. Transient note
+identity, note pitch/velocity expression, resonator history, exciter/RNG
+progress, energy diagnostics and audio-thread buffers are deliberately not
+persisted. Loading state clears transient DSP history and hard-restores the
+saved parameter targets; ordinary automation continues to use the existing
+core-owned smoothing path.
+
+The VST3 processor keeps the portable parameter snapshot separate from
+performance-note events so saving a project cannot accidentally persist the
+last played note pitch or velocity as parameter state. Valid zero-sample
+parameter flushes are included in the saved snapshot even before the next
+audio block. `Processor::getState()`, `Processor::setState()` and
+`Controller::setComponentState()` are bounded Steinberg `IBStream` adapters
+around the same portable codec; no VST3 type appears in the canonical state
+representation.
+
+Acceptance remains pending exact-head Oracle, Linux VST3 state regression,
+Steinberg validator and final hostile-review evidence.
 
 ### M4.7 — External excitation
 
