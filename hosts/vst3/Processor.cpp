@@ -200,6 +200,13 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
         return result;
     }
 
+    // External excitation is an optional host-provided side-chain, not a
+    // second synthesis path. Keep it inactive by default so ordinary
+    // instrument use remains output/event-only unless the host connects it.
+    addAudioInput(STR16("External Excitation"),
+                  Steinberg::Vst::SpeakerArr::kStereo,
+                  Steinberg::Vst::kAux,
+                  0);
     addAudioOutput(STR16("Stereo Out"), Steinberg::Vst::SpeakerArr::kStereo);
     addEventInput(STR16("Event In"), 1);
     return Steinberg::kResultOk;
@@ -227,7 +234,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
                  static_cast<Steinberg::int32>(kMaxBlockSize)));
     if (!adapter_.prepare(setup.sampleRate,
                           core_block_size,
-                          0U,
+                          2U,
                           2U) ||
         !adapter_.restoreState(retained)) {
         return Steinberg::kResultFalse;
@@ -597,17 +604,55 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultFalse;
     };
 
+    // The optional auxiliary input is either omitted by the host, represented
+    // as a zero-channel bus, represented by an inactive bus whose two sample
+    // pointers are both null, or supplied as the declared stereo bus. A
+    // partially-null or differently-sized bus is malformed and fails closed.
+    std::array<const Sample*, kMaxChannels> input_sources{};
+    std::uint32_t input_channels = 0U;
+    if (data.numInputs < 0 || data.numInputs > 1) {
+        return fail_closed(0U);
+    }
+    if (data.numInputs == 1) {
+        if (data.inputs == nullptr) {
+            return fail_closed(0U);
+        }
+
+        auto& input_bus = data.inputs[0];
+        if (input_bus.numChannels != 0) {
+            if (input_bus.numChannels != 2 ||
+                input_bus.channelBuffers32 == nullptr) {
+                return fail_closed(0U);
+            }
+
+            const auto* left = input_bus.channelBuffers32[0];
+            const auto* right = input_bus.channelBuffers32[1];
+            if ((left == nullptr) != (right == nullptr)) {
+                return fail_closed(0U);
+            }
+            if (left != nullptr) {
+                input_sources[0] = left;
+                input_sources[1] = right;
+                input_channels = 2U;
+            }
+        }
+    }
+
     if (!translateEvents(data, total_frames) ||
         !appendPendingParameters() ||
         !translateParameters(data, total_frames)) {
         return fail_closed(0U);
     }
 
+    std::array<const Sample*, kMaxChannels> chunk_inputs{};
     std::array<Sample*, kMaxChannels> chunk_outputs{};
     std::uint32_t processed = 0U;
     while (processed < total_frames) {
         const auto chunk_frames =
             std::min(total_frames - processed, adapter_.spec().max_block_size);
+        for (std::uint32_t channel = 0U; channel < input_channels; ++channel) {
+            chunk_inputs[channel] = input_sources[channel] + processed;
+        }
         for (std::uint32_t channel = 0U; channel < output_channels; ++channel) {
             chunk_outputs[channel] = output_buffers[channel] + processed;
         }
@@ -618,8 +663,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         const auto status = adapter_.process(
-            nullptr,
-            0U,
+            input_channels == 0U ? nullptr : chunk_inputs.data(),
+            input_channels,
             chunk_outputs.data(),
             output_channels,
             chunk_frames,

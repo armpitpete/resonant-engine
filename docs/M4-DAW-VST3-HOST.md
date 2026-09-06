@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION ACCEPTED; PROTECTED MERGE NOT YET AUTHORIZED**
+Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION CANDIDATE, FINAL ACCEPTANCE PENDING**
 
 ## Goal
 
@@ -200,16 +200,58 @@ try-once writer arbitration and never spins or takes a mutex; no VST3-specific
 DSP, Breath Pipe retuning or host-specific serialized canonical state was
 introduced.
 
-The following reconciliation changes documentation only. It does not alter core,
-VST3 implementation, CMake, SDK pin, tests or workflow behaviour. The PR remains
-subject to its final exact-head self-hosted gate and protected merge
-authorization.
+Final M4.6 acceptance completed at exact head
+`3fd9265ab3671187b2efaf51396ae4d1f8f1518f`: CI #219, PR Exact Head #79 and
+M4 VST3 Linux Exact Head #42 all passed, including native Debug/Release,
+ASan+UBSan, no-exceptions/no-RTTI portability, M3 native/WASM parity, the
+zero-sample/state regressions and Steinberg validator **47/47**. PR #14 then
+merged at the explicitly authorized head as merge commit
+`fedb61fba0d27406671c1a2154a4904430398ef0`. The authorized and merged trees
+are identical at `e4f47fbd6a0e686e3a47fe05385dbb03ffea78a9`. Post-merge CI #220
+passed sanitizers, portability, native Debug/Release and browser/M3
+native-WASM parity. M4.6 is merged and complete.
 
 ### M4.7 — External excitation
 
-- [ ] when an input bus is available, route caller-owned input audio through the existing core external-excitation path;
-- [ ] no device/file/network access in the core;
-- [ ] no hidden monitoring or extra synthesis path.
+- [x] when an input bus is available, route caller-owned input audio through the existing core external-excitation path;
+- [x] no device/file/network access in the core;
+- [x] no hidden monitoring or extra synthesis path.
+
+The M4.7 implementation candidate adds one optional stereo VST3 auxiliary input
+bus named `External Excitation`. It follows the VST3 side-chain convention:
+the bus is `kAux` and is not requested active by default, so ordinary
+instrument use remains event/output-only unless a host connects the bus.
+
+The processor prepares the existing SDK-free `BreathPipeCoreAdapter` for up to
+two portable input channels. During a real audio block it accepts either no
+input bus, a zero-channel bus, a fully inactive stereo bus whose channel sample
+pointers are both null, or the declared stereo caller-owned float32 buffers.
+Partially-null, differently-sized or extra input busses fail closed. No input
+sample is copied into the output by the host wrapper: active input pointers are
+passed directly into the already accepted `Engine<BreathPipeVoice>` external
+excitation path, and output still comes only from that core model.
+
+For host blocks larger than the core maximum, input and output pointers are both
+rebased for each consecutive bounded core chunk. This preserves the M4.2 rule
+that host block size cannot become feedback delay and prevents the second chunk
+from accidentally rereading the start of the host input buffer.
+
+Dedicated VST3 regression coverage proves:
+- the external bus is auxiliary, stereo and not default-active;
+- disconnected/no-input operation remains exactly silent from reset;
+- supplied external audio creates resonant output through the core and is not a dry copy;
+- an inactive all-null auxiliary bus behaves as no external input;
+- malformed mono or partially-null input fails closed and clears output;
+- excitation that begins only after frame 4096 is observed only by the correctly rebased second core chunk.
+
+No `core/**` DSP file changes in M4.7, and there is no device, file or network
+access. Because this slice changes VST3 processor I/O topology, earlier hosted
+Windows/macOS evidence must not be carried through M4 final freeze; M4.12 will
+require a fresh hosted platform matrix.
+
+M4.7 acceptance remains pending fresh exact-head Oracle validation, the Linux
+VST3 external-excitation regression, Steinberg validator **47/47**, and a fresh
+hostile review.
 
 ### M4.8 — Realtime and boundedness proof
 
