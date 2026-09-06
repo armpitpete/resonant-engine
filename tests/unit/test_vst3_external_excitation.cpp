@@ -180,11 +180,9 @@ void testInactiveAndMalformedInputHandling() {
           "partial-null failure clears host output");
 
     resonant::vst3::Processor mono;
-    check(prepare(mono), "prepare malformed mono input processor");
+    check(prepare(mono), "prepare negotiated mono input processor");
     std::array<float, frames> mono_left{};
     std::array<float, frames> mono_right{};
-    mono_left.fill(0.5F);
-    mono_right.fill(0.5F);
     check(processStereo(mono,
                         static_cast<Steinberg::int32>(frames),
                         source.data(),
@@ -192,10 +190,32 @@ void testInactiveAndMalformedInputHandling() {
                         1,
                         true,
                         mono_left.data(),
-                        mono_right.data()) == Steinberg::kResultFalse,
-          "wrong input channel count fails closed");
-    check(allZero(mono_left) && allZero(mono_right),
-          "wrong-channel failure clears host output");
+                        mono_right.data()) == Steinberg::kResultOk,
+          "negotiated mono external input is accepted");
+    double mono_energy = 0.0;
+    for (const auto sample : mono_left) {
+        mono_energy += std::abs(static_cast<double>(sample));
+    }
+    check(mono_energy > 1.0e-8,
+          "negotiated mono external input excites the existing core");
+
+    resonant::vst3::Processor overwide;
+    check(prepare(overwide), "prepare over-wide input processor");
+    std::array<float, frames> wide_left{};
+    std::array<float, frames> wide_right{};
+    wide_left.fill(0.5F);
+    wide_right.fill(0.5F);
+    check(processStereo(overwide,
+                        static_cast<Steinberg::int32>(frames),
+                        source.data(),
+                        source.data(),
+                        3,
+                        true,
+                        wide_left.data(),
+                        wide_right.data()) == Steinberg::kResultFalse,
+          "over-wide input channel count fails closed");
+    check(allZero(wide_left) && allZero(wide_right),
+          "over-wide input failure clears host output");
 }
 
 void testOversizedHostBlockRebasesExternalInput() {
