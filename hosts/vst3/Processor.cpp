@@ -9,12 +9,189 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdint>
 
 namespace resonant::vst3 {
 
 Processor::Processor() {
     setControllerClass(kControllerUid);
+    storePortableState(defaultBreathPipeState());
+}
+
+void Processor::storePortableState(const BreathPipeState& state) noexcept {
+    const auto seed = static_cast<std::uint64_t>(state.seed);
+    state_seed_low_.store(
+        static_cast<std::uint32_t>(seed & 0xffffffffULL),
+        std::memory_order_relaxed);
+    state_seed_high_.store(
+        static_cast<std::uint32_t>(seed >> 32U),
+        std::memory_order_relaxed);
+    for (std::size_t index = 0U; index < state.parameters.size(); ++index) {
+        state_parameter_bits_[index].store(
+            std::bit_cast<std::uint32_t>(state.parameters[index].value),
+            std::memory_order_relaxed);
+    }
+}
+
+bool Processor::capturePortableStateUnlocked(
+    BreathPipeState& state) const noexcept {
+    auto captured = defaultBreathPipeState();
+    const auto seed_low =
+        state_seed_low_.load(std::memory_order_acquire);
+    const auto seed_high =
+        state_seed_high_.load(std::memory_order_acquire);
+    captured.seed =
+        (static_cast<std::uint64_t>(seed_high) << 32U) |
+        static_cast<std::uint64_t>(seed_low);
+
+    for (std::size_t index = 0U; index < captured.parameters.size(); ++index) {
+        captured.parameters[index].value = std::bit_cast<Sample>(
+            state_parameter_bits_[index].load(std::memory_order_acquire));
+    }
+    if (!validBreathPipeState(captured)) {
+        return false;
+    }
+    state = captured;
+    return true;
+}
+
+bool Processor::capturePortableState(BreathPipeState& state) noexcept {
+    // Component state/lifecycle calls are non-realtime. Serialize the short
+    // multi-field mirror copy against UI/audio writers so the returned state
+    // is one coherent generation, never a mixture of two publications.
+    while (state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+    }
+    const auto captured = capturePortableStateUnlocked(state);
+    state_writer_guard_.clear(std::memory_order_release);
+    return captured;
+}
+
+bool Processor::queuePortableState(const BreathPipeState& state) noexcept {
+    // setState() is a UI-thread call. It may wait for the tiny bounded audio
+    // publication section, while process() never waits for this token.
+    while (state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+    }
+
+    const auto sequence =
+        state_request_sequence_.load(std::memory_order_relaxed);
+    if ((sequence & 1U) != 0U) {
+        state_writer_guard_.clear(std::memory_order_release);
+        return false;
+    }
+
+    state_request_sequence_.store(sequence + 1U, std::memory_order_release);
+    storePortableState(state);
+    state_request_sequence_.store(sequence + 2U, std::memory_order_release);
+    state_writer_guard_.clear(std::memory_order_release);
+    return true;
+}
+
+bool Processor::stateRequestPending() const noexcept {
+    const auto sequence =
+        state_request_sequence_.load(std::memory_order_acquire);
+    return (sequence & 1U) != 0U ||
+           sequence != applied_state_request_sequence_;
+}
+
+bool Processor::markCurrentStateRequestApplied() noexcept {
+    const auto sequence =
+        state_request_sequence_.load(std::memory_order_acquire);
+    if ((sequence & 1U) != 0U) {
+        return false;
+    }
+    applied_state_request_sequence_ = sequence;
+    return true;
+}
+
+bool Processor::applyQueuedPortableState() noexcept {
+    auto sequence =
+        state_request_sequence_.load(std::memory_order_acquire);
+    if (sequence == applied_state_request_sequence_) {
+        return true;
+    }
+    if ((sequence & 1U) != 0U ||
+        state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+        // UI publication is in flight. Never spin on the audio thread; use
+        // the previous state for this block and retry on the next call.
+        return true;
+    }
+
+    sequence = state_request_sequence_.load(std::memory_order_acquire);
+    if (sequence == applied_state_request_sequence_ ||
+        (sequence & 1U) != 0U) {
+        state_writer_guard_.clear(std::memory_order_release);
+        return true;
+    }
+
+    BreathPipeState requested{};
+    const auto captured = capturePortableStateUnlocked(requested);
+    const auto confirmed =
+        state_request_sequence_.load(std::memory_order_acquire);
+    state_writer_guard_.clear(std::memory_order_release);
+
+    if (!captured) {
+        return false;
+    }
+    if (confirmed != sequence || (confirmed & 1U) != 0U) {
+        return true;
+    }
+    if (!adapter_.restoreState(requested)) {
+        return false;
+    }
+
+    applied_state_request_sequence_ = sequence;
+    clearPendingParameters();
+    event_translator_.reset();
+    chunk_events_.clear();
+    return true;
+}
+
+bool Processor::publishAdapterState() noexcept {
+    if (stateRequestPending()) {
+        return true;
+    }
+
+    BreathPipeState captured{};
+    if (!adapter_.captureState(captured)) {
+        return false;
+    }
+    if (stateRequestPending() ||
+        state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+        return true;
+    }
+
+    const auto sequence =
+        state_request_sequence_.load(std::memory_order_acquire);
+    if ((sequence & 1U) == 0U &&
+        sequence == applied_state_request_sequence_) {
+        storePortableState(captured);
+    }
+    state_writer_guard_.clear(std::memory_order_release);
+    return true;
+}
+
+void Processor::publishPendingParameterState() noexcept {
+    if (stateRequestPending() ||
+        state_writer_guard_.test_and_set(std::memory_order_acquire)) {
+        return;
+    }
+
+    const auto sequence =
+        state_request_sequence_.load(std::memory_order_acquire);
+    if ((sequence & 1U) == 0U &&
+        sequence == applied_state_request_sequence_) {
+        for (std::size_t index = 0U;
+             index < pending_parameter_set_.size(); ++index) {
+            if (pending_parameter_set_[index]) {
+                state_parameter_bits_[index].store(
+                    std::bit_cast<std::uint32_t>(
+                        pending_parameter_values_[index]),
+                    std::memory_order_relaxed);
+            }
+        }
+    }
+    state_writer_guard_.clear(std::memory_order_release);
 }
 
 Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context) {
@@ -35,6 +212,11 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         return Steinberg::kResultFalse;
     }
 
+    BreathPipeState retained{};
+    if (!capturePortableState(retained)) {
+        return Steinberg::kResultFalse;
+    }
+
     const auto result = AudioEffect::setupProcessing(setup);
     if (result != Steinberg::kResultOk) {
         return result;
@@ -46,10 +228,14 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     if (!adapter_.prepare(setup.sampleRate,
                           core_block_size,
                           0U,
-                          2U)) {
+                          2U) ||
+        !adapter_.restoreState(retained)) {
         return Steinberg::kResultFalse;
     }
 
+    if (!markCurrentStateRequestApplied()) {
+        return Steinberg::kResultFalse;
+    }
     event_translator_.reset();
     chunk_events_.clear();
     clearPendingParameters();
@@ -57,8 +243,16 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 }
 
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
-    if (adapter_.prepared() && !adapter_.reset()) {
-        return Steinberg::kResultFalse;
+    if (adapter_.prepared()) {
+        BreathPipeState retained{};
+        if (!capturePortableState(retained) ||
+            !adapter_.restoreState(retained)) {
+            return Steinberg::kResultFalse;
+        }
+        if (!markCurrentStateRequestApplied()) {
+            return Steinberg::kResultFalse;
+        }
+        clearPendingParameters();
     }
     event_translator_.reset();
     chunk_events_.clear();
@@ -324,6 +518,26 @@ void Processor::clearPendingParameters() noexcept {
     pending_parameter_set_.fill(false);
 }
 
+Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
+    BreathPipeState decoded{};
+    if (!PortableStateStreamAdapter::read(state, decoded)) {
+        return Steinberg::kResultFalse;
+    }
+
+    return queuePortableState(decoded)
+               ? Steinberg::kResultOk
+               : Steinberg::kResultFalse;
+}
+
+Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
+    BreathPipeState captured{};
+    if (!capturePortableState(captured) ||
+        !PortableStateStreamAdapter::write(state, captured)) {
+        return Steinberg::kResultFalse;
+    }
+    return Steinberg::kResultOk;
+}
+
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
     if (!adapter_.prepared() ||
         data.symbolicSampleSize != Steinberg::Vst::kSample32 ||
@@ -331,13 +545,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultFalse;
     }
 
+    if (!applyQueuedPortableState()) {
+        return Steinberg::kResultFalse;
+    }
+
     if (data.numSamples == 0) {
         // VST3 explicitly permits parameter flushing without audio buffers.
         // Do not invent a one-sample DSP block: retain validated control state
         // and feed it into the next real block through the portable event path.
-        return stageFlushParameters(data)
-                   ? Steinberg::kResultOk
-                   : Steinberg::kResultFalse;
+        if (!stageFlushParameters(data)) {
+            return Steinberg::kResultFalse;
+        }
+        publishPendingParameterState();
+        return Steinberg::kResultOk;
     }
 
     if (data.numOutputs < 1 || data.outputs == nullptr) {
@@ -412,6 +632,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     clearPendingParameters();
+    if (!publishAdapterState()) {
+        return fail_closed(0U);
+    }
     output_bus.silenceFlags = 0;
     return Steinberg::kResultOk;
 }

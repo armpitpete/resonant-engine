@@ -107,6 +107,12 @@ if(RESONANT_ENGINE_BUILD_TESTS)
     resonant_apply_sanitizers(resonant_breath_pipe_contract_tests)
     add_test(NAME resonant_breath_pipe_contract_tests COMMAND resonant_breath_pipe_contract_tests)
 
+    add_executable(resonant_breath_pipe_state_tests tests/unit/test_breath_pipe_state.cpp)
+    target_link_libraries(resonant_breath_pipe_state_tests PRIVATE ResonantEngine::core)
+    resonant_apply_warnings(resonant_breath_pipe_state_tests)
+    resonant_apply_sanitizers(resonant_breath_pipe_state_tests)
+    add_test(NAME resonant_breath_pipe_state_tests COMMAND resonant_breath_pipe_state_tests)
+
     add_executable(resonant_breath_pipe_allocation_tests tests/unit/test_breath_pipe_allocation.cpp)
     target_link_libraries(resonant_breath_pipe_allocation_tests PRIVATE ResonantEngine::core)
     resonant_apply_warnings(resonant_breath_pipe_allocation_tests)
@@ -176,6 +182,38 @@ if(RESONANT_ENGINE_BUILD_TESTS)
         add_test(
             NAME resonant_vst3_processor_flush_tests
             COMMAND resonant_vst3_processor_flush_tests
+        )
+
+        add_executable(
+            resonant_vst3_state_tests
+            tests/unit/test_vst3_state.cpp
+            hosts/vst3/Processor.cpp
+        )
+        target_include_directories(
+            resonant_vst3_state_tests
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        target_include_directories(
+            resonant_vst3_state_tests
+            SYSTEM BEFORE PRIVATE
+                ${vst3sdk_SOURCE_DIR}
+        )
+        find_package(Threads REQUIRED)
+        target_link_libraries(
+            resonant_vst3_state_tests
+            PRIVATE
+                ResonantEngine::core
+                sdk
+                sdk_hosting
+                Threads::Threads
+        )
+        target_compile_features(
+            resonant_vst3_state_tests PRIVATE cxx_std_20)
+        resonant_apply_warnings(resonant_vst3_state_tests)
+        add_test(
+            NAME resonant_vst3_state_tests
+            COMMAND resonant_vst3_state_tests
         )
     endif()
 

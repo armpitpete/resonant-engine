@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 NEXT**
+Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION ACCEPTED; PROTECTED MERGE NOT YET AUTHORIZED**
 
 ## Goal
 
@@ -108,11 +108,102 @@ M4.5 is complete. M4.6 proceeds from merged `main` and is limited to portable st
 
 ### M4.6 — Portable state recall
 
-- [ ] define a versioned host-neutral Breath Pipe state representation;
-- [ ] VST3 getState/setState translates to that representation;
-- [ ] save/reload reproduces parameter/model state deterministically;
-- [ ] malformed/unknown state fails safely;
-- [ ] no VST3-specific serialized representation becomes the canonical engine state.
+- [x] define a versioned host-neutral Breath Pipe state representation;
+- [x] VST3 getState/setState translates to that representation;
+- [x] save/reload reproduces parameter/model state deterministically;
+- [x] malformed/unknown state fails safely;
+- [x] no VST3-specific serialized representation becomes the canonical engine state.
+
+M4.6 defines a fixed **96-byte** portable Breath Pipe
+state payload in `resonant/BreathPipeState.hpp`. The canonical payload is
+host-neutral and consists of:
+
+- four-byte magic `REBP`;
+- little-endian format version `1`;
+- canonical parameter count `10`;
+- little-endian 64-bit deterministic per-voice seed;
+- ten ordered entries of stable 32-bit `ParameterId` plus IEEE-754 float32
+  native value.
+
+The wire order is exactly `BreathPipeVoice::kParameterSpecs`. Version 1 rejects
+unknown/newer versions, wrong counts, reordered/unknown/duplicate IDs,
+non-finite values, out-of-range values, truncation and extra bytes. Decode and
+application are transactional: invalid state does not partially mutate the
+previous state.
+
+Persistent portable model state consists of the deterministic per-voice seed
+plus canonical parameter state. Transient note identity, note pitch/velocity
+expression, resonator history, current RNG progress, energy diagnostics and
+audio-thread buffers are deliberately not persisted. Loading state clears
+transient DSP/RNG history, restores the saved seed and hard-restores the saved
+parameter targets; ordinary automation continues to use the existing core-owned
+smoothing path.
+
+The portable Breath Pipe model keeps persistent `ParameterChange` state
+separate from transient pitch, pressure and per-note expression so saving a
+project cannot accidentally persist the last played note or velocity as
+parameter state. The VST3 processor keeps a lock-free atomic mirror of the portable seed and
+parameter targets. This is required because Steinberg permits component
+`getState()` / `setState()` calls from the UI thread while realtime
+`process()` is active on the audio thread. `getState()` reads only atomic
+mirror values; `setState()` publishes a validated UI-to-audio state request
+without mutating the live DSP, event translator or pending audio-thread state.
+The audio thread applies the latest complete request at a process boundary.
+Writer arbitration uses an always-lock-free 32-bit atomic state plus
+`atomic_flag`: the UI thread may wait briefly, but `process()` performs only
+a single nonblocking attempt and never spins or takes a mutex. Non-realtime
+state readers take the same short writer token only while copying the atomic
+mirror, so a serialized state is always one complete publication generation
+rather than a mixture of fields from two generations. The regression suite
+concurrently alternates two deliberately distinct valid states while repeatedly
+saving state and rejects any mixed-generation snapshot. Successful audio blocks
+and zero-sample parameter flushes publish persistent targets back to the atomic
+mirror.
+
+State may still be loaded before `setupProcessing()`, and valid zero-sample
+parameter flushes remain staged until the next real audio block.
+`Processor::getState()`, `Processor::setState()` and
+`Controller::setComponentState()` remain bounded Steinberg `IBStream`
+adapters around the same portable codec; no VST3 type appears in the canonical
+state representation.
+
+The first exact-head Release regression used two separately inlined direct
+`BreathPipeVoice::processSample()` call sites and demanded bit identity between
+them. GNU 13 Release floating-point contraction/code generation allowed those
+separately inlined call sites to round differently; the resulting divergence
+was then amplified by the feedback resonator. A diagnostic build with
+`-ffp-contract=off` made that
+otherwise unchanged test pass 38/38, while Debug, sanitizers and the Release
+VST3 two-processor test were already deterministic. The diagnostic compiler
+flag is not retained. The permanent core regression instead proves the actual
+recall contract: save/render, disturb, reload, render reproduces the exact
+trajectory on the same model path, while the separate VST3 regression continues
+to prove two-processor deterministic recall.
+
+Frozen M3 also requires independent deterministic per-voice seeds. M4.6
+therefore serializes the seed as persistent host-neutral model state rather than
+relying on the VST3 wrapper's default seed.
+
+Implementation acceptance completed at exact head
+`58796bfc502633e6730f5049a55054b664071181`. CI #218 passed browser/native-WASM
+parity; PR Exact Head #78 passed native Debug, native Release, ASan+UBSan,
+no-exceptions/no-RTTI portability and M3 native/WASM parity; M4 VST3 Linux Exact
+Head #41 passed the dedicated zero-sample flush and portable-state regressions,
+including concurrent mixed-generation snapshot rejection. Steinberg validator
+reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of that implementation head also passed: state calls do not
+read or mutate live DSP concurrently with `process()`; `getState()` sees one
+coherent atomic-mirror generation; `setState()` publishes a validated request
+for audio-boundary application; the audio thread only performs nonblocking
+try-once writer arbitration and never spins or takes a mutex; no VST3-specific
+DSP, Breath Pipe retuning or host-specific serialized canonical state was
+introduced.
+
+The following reconciliation changes documentation only. It does not alter core,
+VST3 implementation, CMake, SDK pin, tests or workflow behaviour. The PR remains
+subject to its final exact-head self-hosted gate and protected merge
+authorization.
 
 ### M4.7 — External excitation
 

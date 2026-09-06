@@ -39,6 +39,11 @@ public:
         jet_highpass_ = 0.0F;
     }
 
+    void setSeed(Seed seed) noexcept {
+        seed_ = seed;
+        reset();
+    }
+
     struct Input {
         Sample external_audio{0.0F};
         Sample external_amount{0.0F};
@@ -362,7 +367,7 @@ public:
     }
 
     void reset() noexcept {
-        exciter_.reset();
+        exciter_.setSeed(seed_);
         resonator_.reset();
         pitch_.reset(resonator_.clampTuning(220.0F));
         pressure_.reset(0.0F);
@@ -374,6 +379,9 @@ public:
         nonlinear_drive_.reset(0.30F);
         external_amount_.reset(0.50F);
         timbre_.reset(0.25F);
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            persistent_parameter_values_[index] = kParameterSpecs[index].default_value;
+        }
         pending_trigger_ = 0.0F;
         last_returned_ = 0.0F;
         energy_.reset();
@@ -470,42 +478,116 @@ public:
     [[nodiscard]] Sample currentRegeneration() const noexcept { return regeneration_.current(); }
     [[nodiscard]] Seed seed() const noexcept { return seed_; }
 
+    [[nodiscard]] bool parameterTarget(ParameterId id, Sample& value) const noexcept {
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            if (kParameterSpecs[index].id == id) {
+                value = persistent_parameter_values_[index];
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // State recall is a non-realtime lifecycle operation. It deliberately
+    // clears transient resonator/exciter history, then restores canonical
+    // parameter targets as hard state so recall cannot depend on whatever
+    // audio the instance processed before the load. Ordinary automation still
+    // uses handleParameter() and the existing core-owned smoothers.
+    [[nodiscard]] bool restorePersistentState(
+        Seed seed,
+        std::span<const Sample> values) noexcept {
+        if (values.size() != kParameterSpecs.size()) {
+            return false;
+        }
+        for (std::size_t index = 0U; index < values.size(); ++index) {
+            const auto& spec = kParameterSpecs[index];
+            if (!std::isfinite(values[index]) ||
+                values[index] < spec.minimum ||
+                values[index] > spec.maximum) {
+                return false;
+            }
+        }
+
+        seed_ = seed;
+        reset();
+        for (std::size_t index = 0U; index < values.size(); ++index) {
+            resetParameterTarget(kParameterSpecs[index].id, values[index]);
+        }
+        return true;
+    }
+
 private:
-    void handleParameter(ParameterId target, Sample value) noexcept {
+    void applyPersistentParameter(ParameterId target,
+                                  Sample value,
+                                  bool hard_reset) noexcept {
+        Sample applied = value;
+        ParameterSmoother* smoother = nullptr;
+
         switch (target) {
         case kPitchHz:
-            pitch_.setTarget(resonator_.clampTuning(value));
+            applied = resonator_.clampTuning(value);
+            smoother = &pitch_;
             break;
         case kPressure:
-            pressure_.setTarget(clampFinite(value, 0.0F, 1.0F));
+            applied = clampFinite(value, 0.0F, 1.0F);
+            smoother = &pressure_;
             break;
         case kTurbulence:
-            turbulence_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.25F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.25F);
+            smoother = &turbulence_;
             break;
         case kInteraction:
-            interaction_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.55F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.55F);
+            smoother = &interaction_;
             break;
         case kDamping:
-            damping_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.12F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.12F);
+            smoother = &damping_;
             break;
         case kRegeneration:
-            regeneration_.setTarget(clampFinite(value, 0.0F, 1.5F, 0.18F));
+            applied = clampFinite(value, 0.0F, 1.5F, 0.18F);
+            smoother = &regeneration_;
             break;
         case kFeedbackColor:
-            feedback_color_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.20F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.20F);
+            smoother = &feedback_color_;
             break;
         case kNonlinearDrive:
-            nonlinear_drive_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.30F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.30F);
+            smoother = &nonlinear_drive_;
             break;
         case kExternalAmount:
-            external_amount_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.50F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.50F);
+            smoother = &external_amount_;
             break;
         case kTimbre:
-            timbre_.setTarget(clampFinite(value, 0.0F, 1.0F, 0.25F));
+            applied = clampFinite(value, 0.0F, 1.0F, 0.25F);
+            smoother = &timbre_;
             break;
         default:
-            break;
+            return;
         }
+
+        if (hard_reset) {
+            smoother->reset(applied);
+        } else {
+            smoother->setTarget(applied);
+        }
+
+        for (std::size_t index = 0U; index < kParameterSpecs.size(); ++index) {
+            if (kParameterSpecs[index].id == target) {
+                persistent_parameter_values_[index] = applied;
+                return;
+            }
+        }
+    }
+
+    void resetParameterTarget(ParameterId target, Sample value) noexcept {
+        applyPersistentParameter(target, value, true);
+    }
+
+    void handleParameter(ParameterId target, Sample value) noexcept {
+        applyPersistentParameter(target, value, false);
     }
 
     Seed seed_{kDefaultSeed};
@@ -521,6 +603,7 @@ private:
     ParameterSmoother nonlinear_drive_{};
     ParameterSmoother external_amount_{};
     ParameterSmoother timbre_{};
+    std::array<Sample, kParameterSpecs.size()> persistent_parameter_values_{};
     EnergyMonitor energy_{};
     Sample pending_trigger_{0.0F};
     Sample last_returned_{0.0F};
