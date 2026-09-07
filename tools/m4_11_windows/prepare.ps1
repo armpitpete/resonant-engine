@@ -122,13 +122,13 @@ if ($bundleMatches.Count -eq 1) {
 
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $manifestPath = Join-Path $evidencePath "plugin-files.sha256"
-$bundleRoot = $bundle.FullName.TrimEnd("\", "/")
+$bundleRoot = $bundle.FullName.TrimEnd([char[]]"\/")
 
 $manifestLines = @(
     Get-ChildItem -Path $bundleRoot -File -Recurse |
         Sort-Object FullName |
         ForEach-Object {
-            $relative = $_.FullName.Substring($bundleRoot.Length).TrimStart("\", "/")
+            $relative = $_.FullName.Substring($bundleRoot.Length).TrimStart([char[]]"\/")
             $relative = $relative.Replace("\", "/")
             $hash = (Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLowerInvariant()
             "$hash  $relative"
