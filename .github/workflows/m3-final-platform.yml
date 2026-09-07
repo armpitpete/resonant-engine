@@ -17,9 +17,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [Windows, macOS]
         build_type: [Debug, Release]
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, "${{ matrix.os }}"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,7 +39,7 @@ jobs:
 
   browser-build:
     if: github.event.pull_request.head.ref == 'm3/breath-pipe-contract'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +50,6 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 6.0.6
-          actions-cache-folder: emsdk-cache
       - name: Build exact-head M3 Lab and Node parity module
         env:
           RESONANT_LAB_BUILD_NODE_PARITY: "1"
@@ -86,12 +85,13 @@ jobs:
         with:
           name: m3-final-platform-lab-${{ env.SOURCE_SHA }}
           if-no-files-found: error
+          retention-days: 1
           path: build/resonant-m3-lab/
 
   browser-smoke:
     if: github.event.pull_request.head.ref == 'm3/breath-pipe-contract'
     needs: browser-build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     timeout-minutes: 25
     strategy:
       fail-fast: false
