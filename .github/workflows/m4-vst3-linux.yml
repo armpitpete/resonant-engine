@@ -105,7 +105,8 @@ jobs:
           grep -F "PASS: M4.10 VST3 conformance" m4-conformance.log
           grep -F "M4.10 OFFLINE process_mode=offline finite=1 audible=1" m4-conformance.log
           grep -F "M4.10 LIFECYCLE cycles=8 reset_silence=1 fresh_note_audio=1" m4-conformance.log
-          grep -F "M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1" m4-conformance.log\n          grep -F "M4.10 AUTOMATION_VALUE malformed_value_fail_closed=1" m4-conformance.log
+          grep -F "M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1" m4-conformance.log
+          grep -F "M4.10 AUTOMATION_VALUE malformed_value_fail_closed=1" m4-conformance.log
           {
             echo "## M4.10 VST3 conformance"
             echo
