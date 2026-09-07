@@ -1,6 +1,7 @@
 #include "hosts/vst3/Processor.hpp"
 
 #include "public.sdk/source/vst/hosting/parameterchanges.h"
+#include "pluginterfaces/vst/ivstevents.h"
 
 #include "resonant/BreathPipe.hpp"
 #include "resonant/Engine.hpp"
