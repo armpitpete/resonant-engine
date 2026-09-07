@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION ACCEPTED; PROTECTED MERGE PENDING**
+Status: **M4.0–M4.7 MERGED AND COMPLETE — M4.8 REALTIME/BOUNDEDNESS PROOF CANDIDATE; ACCEPTANCE PENDING**
 
 ## Goal
 
@@ -284,12 +284,52 @@ head-changing documentation commit.
 
 ### M4.8 — Realtime and boundedness proof
 
-- [ ] wrapper processing performs no unbounded allocation;
-- [ ] bounded event/automation translation;
-- [ ] no locks on the audio thread;
-- [ ] deterministic reset;
-- [ ] finite/protected-state propagation remains observable;
-- [ ] CPU scaling recorded for one, four and eight voices where applicable.
+- [x] wrapper processing performs no unbounded allocation;
+- [x] bounded event/automation translation;
+- [x] no locks on the audio thread;
+- [x] deterministic reset;
+- [x] finite/protected-state propagation remains observable;
+- [x] CPU scaling recorded for one, four and eight processing instances.
+
+M4.7 merged as PR #15 at exact authorized head
+`a3b9569560510c993aa700d2ce278ff5f93375e6` as merge commit
+`9bf5dadf33e666457bbde7c40b1086ca8b7b415d`. The authorized and merged
+trees are identical at `7ff3974e3fadb2ab386a3a3ba2112fe754e00fee`.
+Post-merge CI #221 passed native Debug/Release, ASan+UBSan,
+no-exceptions/no-RTTI portability and browser/M3 native-WASM parity. M4.7 is
+merged and complete.
+
+M4.8 is evidence/proof work only. It does not change `core/**` DSP or the
+VST3 processing algorithm. The candidate adds a wrapper-level allocation probe
+around a real `Processor::process()` call carrying external audio, a note event
+and sample-accurate automation; dynamic allocation is counted only while the
+audio callback is executing and must remain zero.
+
+The existing fixed `HostEventTranslator`/`FixedEventBuffer` contract is
+supplemented by processor-level over-capacity host event and automation tests.
+Both must fail closed, clear output and expose host silence rather than allocate
+or grow storage. A source-contract gate scans the realtime wrapper path for
+mutex/condition-variable/wait/sleep APIs and heap-backed standard containers;
+the M4.6 state handoff remains the accepted nonblocking try-once atomic design
+on the audio thread.
+
+VST3 deactivate/reactivate is tested as a deterministic hard lifecycle reset:
+the same note trajectory before and after reset must be bit-identical. Non-finite
+external input is also tested through the portable finite-input policy and must
+produce finite/silent output rather than leak NaN/Infinity.
+
+Native CPU evidence records median time per 128-frame host block for one, four
+and eight independent VST3 processor instances on the Oracle runner. These
+measurements demonstrate wrapper-instance scaling and do **not** claim that the
+current monophonic VST3 adapter has become an eight-voice polyphonic instrument.
+Frozen M3 browser acceptance already separately proved its bounded polyphonic
+Lab bank; M4.11 remains responsible for the actual DAW chord/polyphony
+acceptance decision.
+
+M4.8 acceptance remains pending fresh exact-head Debug/Release, ASan+UBSan,
+portability, M3 native/WASM parity, the VST3 realtime/control/state/excitation
+regressions, Steinberg validator 47/47, review of the recorded 1/4/8 CPU
+measurements, and fresh hostile review.
 
 ### M4.9 — Native-core/VST3 parity
 
