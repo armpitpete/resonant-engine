@@ -9,11 +9,22 @@ param(
     [string]$MidiInput = "Novation Launchkey 25",
     [switch]$SkipTests,
     [switch]$Install,
-    [string]$InstallRoot = (Join-Path $env:CommonProgramFiles "VST3")
+    [string]$InstallRoot = ""
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
+    $commonProgramFiles = $env:CommonProgramFiles
+    if ([string]::IsNullOrWhiteSpace($commonProgramFiles)) {
+        if ([string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+            throw "Could not determine Program Files location for the VST3 install root."
+        }
+        $commonProgramFiles = Join-Path $env:ProgramFiles "Common Files"
+    }
+    $InstallRoot = Join-Path $commonProgramFiles "VST3"
+}
 
 function Invoke-Native {
     param(
