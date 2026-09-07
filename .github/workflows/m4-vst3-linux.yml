@@ -105,7 +105,7 @@ jobs:
           grep -F "PASS: M4.10 VST3 conformance" m4-conformance.log
           grep -F "M4.10 OFFLINE process_mode=offline finite=1 audible=1" m4-conformance.log
           grep -F "M4.10 LIFECYCLE cycles=8 reset_silence=1 fresh_note_audio=1" m4-conformance.log
-          grep -F "M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1" m4-conformance.log
+          grep -F "M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1" m4-conformance.log\n          grep -F "M4.10 AUTOMATION_VALUE malformed_value_fail_closed=1" m4-conformance.log
           {
             echo "## M4.10 VST3 conformance"
             echo
@@ -145,3 +145,10 @@ jobs:
           grep -F "[Terminate/Initialize]" validator.log
           grep -F "[Suspend/Resume]" validator.log
           grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
+
+          for cycle in 1 2 3 4; do
+            "$validator" "$plugin" >"validator-load-unload-$cycle.log" 2>&1
+            grep -F "* Loading module..." "validator-load-unload-$cycle.log"
+            grep -E "Result: [0-9]+ tests passed, 0 tests failed" "validator-load-unload-$cycle.log"
+          done
+          echo "M4.10 MODULE_LOAD_UNLOAD validator_cycles=4 pass=1"
