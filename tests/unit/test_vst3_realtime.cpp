@@ -284,7 +284,9 @@ struct BlockFixture {
     Steinberg::Vst::AudioBusBuffers output_bus{};
     Steinberg::Vst::ProcessData data{};
 
-    explicit BlockFixture(bool with_input = false) noexcept {
+    BlockFixture() noexcept : BlockFixture(false) {}
+
+    explicit BlockFixture(bool with_input) noexcept {
         input_bus.numChannels = 2;
         input_bus.channelBuffers32 = input_channels.data();
         output_bus.numChannels = 2;
