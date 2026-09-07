@@ -12,6 +12,7 @@ on:
       - "tests/unit/test_vst3_external_excitation.cpp"
       - "tests/unit/test_vst3_realtime.cpp"
       - "tests/unit/test_vst3_parity.cpp"
+      - "tests/unit/test_vst3_conformance.cpp"
       - "cmake/vst3_sdk.cmake"
       - "cmake/check_vst3_realtime_boundary.cmake"
       - "cmake/check_vst3_boundary.cmake"
@@ -53,14 +54,15 @@ jobs:
       - name: Build VST3 host
         run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
 
-      - name: Run VST3 control, state, excitation, realtime and parity regressions
+      - name: Run VST3 control, state, excitation, realtime, parity and conformance regressions
         run: |
           cmake --build build-vst3-linux --target resonant_vst3_processor_flush_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_state_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_external_excitation_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_realtime_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_parity_tests --parallel 2
-          ctest --test-dir build-vst3-linux -R "resonant_vst3_(processor_flush|state|external_excitation|realtime|parity)_tests|resonant_vst3_realtime_boundary" --output-on-failure
+          cmake --build build-vst3-linux --target resonant_vst3_conformance_tests --parallel 2
+          ctest --test-dir build-vst3-linux -R "resonant_vst3_(processor_flush|state|external_excitation|realtime|parity|conformance)_tests|resonant_vst3_realtime_boundary" --output-on-failure
 
       - name: Record M4.8 native wrapper CPU scaling
         shell: bash
@@ -96,6 +98,22 @@ jobs:
             echo "```"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Record M4.10 VST3 conformance evidence
+        shell: bash
+        run: |
+          build-vst3-linux/resonant_vst3_conformance_tests | tee m4-conformance.log
+          grep -F "PASS: M4.10 VST3 conformance" m4-conformance.log
+          grep -F "M4.10 OFFLINE process_mode=offline finite=1 audible=1" m4-conformance.log
+          grep -F "M4.10 LIFECYCLE cycles=8 reset_silence=1 fresh_note_audio=1" m4-conformance.log
+          grep -F "M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1" m4-conformance.log
+          {
+            echo "## M4.10 VST3 conformance"
+            echo
+            echo "\`\`\`text"
+            cat m4-conformance.log
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build Steinberg validator
         run: cmake --build build-vst3-linux --target validator --parallel 2
 
@@ -122,4 +140,8 @@ jobs:
           set -e
           cat validator.log
           test "$validator_status" -eq 0
+          grep -F "* Loading module..." validator.log
+          grep -F "* Scanning classes..." validator.log
+          grep -F "[Terminate/Initialize]" validator.log
+          grep -F "[Suspend/Resume]" validator.log
           grep -E "Result: [0-9]+ tests passed, 0 tests failed" validator.log
