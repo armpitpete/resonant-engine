@@ -43,9 +43,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [Windows, macOS]
         build_type: [Debug, Release]
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, "${{ matrix.os }}"]
     steps:
       - uses: actions/checkout@v4
       - name: Configure
@@ -63,7 +63,6 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 6.0.6
-          actions-cache-folder: emsdk-cache
       - name: Build Resonant Engine Lab and Node parity module
         env:
           RESONANT_LAB_BUILD_NODE_PARITY: "1"
@@ -128,6 +127,7 @@ jobs:
         with:
           name: resonant-engine-lab-${{ github.sha }}
           if-no-files-found: error
+          retention-days: 1
           path: build/resonant-lab/
       - name: Upload M3 Breath Pipe Lab artifact
         if: github.event_name == 'workflow_dispatch'
@@ -135,6 +135,7 @@ jobs:
         with:
           name: resonant-engine-m3-lab-${{ github.sha }}
           if-no-files-found: error
+          retention-days: 1
           path: build/resonant-m3-lab/
 
   browser-lab-smoke:
@@ -145,7 +146,7 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit, msedge]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -181,7 +182,7 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit, msedge]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
