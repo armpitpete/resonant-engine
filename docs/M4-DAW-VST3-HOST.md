@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION ACCEPTED; PROTECTED MERGE PENDING**
+Status: **M4.0–M4.7 MERGED AND COMPLETE — M4.8 REALTIME/BOUNDEDNESS PROOF ACCEPTED; PROTECTED MERGE PENDING**
 
 ## Goal
 
@@ -284,12 +284,97 @@ head-changing documentation commit.
 
 ### M4.8 — Realtime and boundedness proof
 
-- [ ] wrapper processing performs no unbounded allocation;
-- [ ] bounded event/automation translation;
-- [ ] no locks on the audio thread;
-- [ ] deterministic reset;
-- [ ] finite/protected-state propagation remains observable;
-- [ ] CPU scaling recorded for one, four and eight voices where applicable.
+- [x] wrapper processing performs no unbounded allocation;
+- [x] bounded event/automation translation;
+- [x] no locks on the audio thread;
+- [x] deterministic reset;
+- [x] finite/protected-state propagation remains observable;
+- [x] CPU scaling recorded for one, four and eight processing instances.
+
+M4.7 merged as PR #15 at exact authorized head
+`a3b9569560510c993aa700d2ce278ff5f93375e6` as merge commit
+`9bf5dadf33e666457bbde7c40b1086ca8b7b415d`. The authorized and merged
+trees are identical at `7ff3974e3fadb2ab386a3a3ba2112fe754e00fee`.
+Post-merge CI #221 passed native Debug/Release, ASan+UBSan,
+no-exceptions/no-RTTI portability and browser/M3 native-WASM parity. M4.7 is
+merged and complete.
+
+M4.8 is evidence/proof work only. It does not change `core/**` DSP or the
+VST3 processing algorithm. The candidate counts dynamic allocation only while
+the actual `Processor::process()` callback is executing and requires zero
+allocations across ordinary external-audio + note + sample-accurate automation,
+zero-sample parameter flush, queued portable-state application at an audio
+boundary, fail-closed event overflow, fail-closed automation overflow and a
+5000-frame host block that exercises bounded 4096-frame core chunking.
+
+The existing fixed `HostEventTranslator`/`FixedEventBuffer` contract is
+supplemented by processor-level over-capacity host event and automation tests.
+Both must fail closed, clear output and expose host silence rather than allocate
+or grow storage. A supplementary source-contract gate scans the realtime wrapper
+sources for obvious mutex/wait/semaphore/thread primitives, heap-backed standard
+containers and direct allocation helpers. It is deliberately not treated as a
+complete static proof; the runtime callback allocation probe is primary. The
+M4.6 state handoff remains the accepted nonblocking try-once atomic design on
+the audio thread.
+
+VST3 deactivate/reactivate is tested as a deterministic hard lifecycle reset:
+the same note trajectory before and after reset must be bit-identical. Non-finite
+external input is also tested through the portable finite-input policy and must
+produce finite/silent output rather than leak NaN/Infinity.
+
+Native CPU evidence records median time per 128-frame host block for one, four
+and eight independent VST3 processor instances on the Oracle runner and converts
+that time into realtime load against the fixed 48 kHz / 128-frame deadline of
+approximately 2.667 ms. The acceptance thresholds are frozen before measurement:
+one instance <25%, four sequential instances <70%, and the eight-instance stress
+case <100% of the realtime deadline. These conservatively carry forward the M3
+realtime envelope and may not be relaxed after observing CI results.
+
+These measurements demonstrate wrapper-instance scaling and do **not** claim
+that the current monophonic VST3 adapter has become an eight-voice polyphonic
+instrument. Frozen M3 browser acceptance already separately proved its bounded
+polyphonic Lab bank; M4.11 remains responsible for the actual DAW
+chord/polyphony acceptance decision.
+
+The first exact-head PR candidate
+`9f111a2c509ad8a6068bd2bd5a85f2bc474caffa` passed native Debug and
+ASan+UBSan, but the new VST3 realtime test target failed to compile under
+warnings-as-errors because `std::array<BlockFixture, N>` required a non-explicit
+default constructor. This was a proof-harness construction defect, not a
+production or realtime failure. The fix changed only the test fixture
+construction and did not alter production code, acceptance thresholds or the
+realtime contract.
+
+Implementation acceptance completed at repaired exact head
+`552afaab12251451d9c0a8d2069c6c8cc2117abe`.
+
+- PR Exact Head #86 passed native Debug, native Release, ASan+UBSan,
+  no-exceptions/no-RTTI portability and M3 native/WASM parity.
+- M4 VST3 Linux Exact Head #49 passed the control, state, external-excitation,
+  realtime and realtime-boundary suite: **5 tests passed, 0 failed**.
+- The runtime allocation probe reported zero dynamic allocation across ordinary
+  active processing, zero-sample parameter flush, queued state application,
+  event overflow, automation overflow and 5000-frame bounded chunking.
+- The fixed 48 kHz / 128-frame callback deadline was
+  **2.66667 ms**. Recorded median sequential wrapper cost was:
+  - 1 instance: **18,588.1 ns**, **0.697053%** realtime load vs **<25%**;
+  - 4 instances: **74,645.9 ns**, **2.79922%** realtime load vs **<70%**;
+  - 8-instance stress: **148,858 ns**, **5.58219%** realtime load vs **<100%**.
+- Steinberg validator reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of the repaired implementation head passed. The proof stays
+strictly in tests/build/documentation; no `core/**` DSP file or
+`hosts/vst3/Processor.cpp` processing algorithm changed. The runtime allocation
+probe is primary evidence; the source scan remains explicitly supplementary.
+The CPU thresholds were frozen before measurement and were not relaxed after
+seeing results. The 1/4/8 measurements remain wrapper-instance scaling evidence
+only and do not satisfy M4.11 DAW chord/polyphony acceptance.
+
+This reconciliation changes documentation only. The resulting final
+documentation head must pass fresh exact-head self-hosted validation and a final
+hostile/no-drift review before PR #16 may leave Draft. Final Ready evidence is
+recorded in PR metadata/comment rather than by another head-changing
+documentation commit.
 
 ### M4.9 — Native-core/VST3 parity
 
