@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.7 MERGED AND COMPLETE — M4.8 REALTIME/BOUNDEDNESS PROOF ACCEPTED; PROTECTED MERGE PENDING**
+Status: **M4.0–M4.8 MERGED AND COMPLETE — M4.9 NATIVE-CORE/VST3 PARITY CANDIDATE; ACCEPTANCE PENDING**
 
 ## Goal
 
@@ -376,11 +376,59 @@ hostile/no-drift review before PR #16 may leave Draft. Final Ready evidence is
 recorded in PR metadata/comment rather than by another head-changing
 documentation commit.
 
+PR #16 subsequently merged at exact authorized head
+`a2b49b6500ac2dd7cbc183ac4cc13e16e28331e5` as merge commit
+`c8cddb4759436d13c64d37d69ad12744a346cca1`. The authorized and merged
+trees are identical at `426bd6950256cc6d37d04f0ac63095da0a622173`.
+Post-merge CI #222 passed browser/native and M3 native/WASM parity, native
+Debug/Release, ASan+UBSan and no-exceptions/no-RTTI portability. M4.8 is merged,
+post-merge reconciled and complete.
+
 ### M4.9 — Native-core/VST3 parity
 
 - [ ] deterministic reference sequences rendered directly through the core and through the VST3 processor;
 - [ ] compare output signatures within an explicitly documented tolerance;
 - [ ] prove automation/event timing parity, not only static-note audio similarity.
+
+M4.9 is a proof-only host-boundary slice. It does not change `core/**` DSP or
+the VST3 processing algorithm. The direct side instantiates
+`Engine<BreathPipeVoice>` independently; the Host side instantiates the real
+VST3 `Processor`. Host note and parameter data are constructed separately from
+the portable `Event` sequence so the comparison does not reuse
+`HostEventTranslator` output as its oracle.
+
+The frozen per-sample comparison rule is fixed before CI measurement and may not
+be relaxed after observing results:
+
+- absolute tolerance: **2e-6**;
+- relative tolerance: **2e-4**;
+- each stereo sample must satisfy
+  `abs(a-b) <= 2e-6 + 2e-4 * max(abs(a), abs(b))`.
+
+The reference sequence covers note-on with tuning/velocity, sample-accurate
+Pitch/External Amount/Timbre automation, note-off, and deterministic stereo
+external excitation. Both paths must remain exactly silent before the requested
+note-on sample and become nonzero on that exact sample.
+
+Timing sensitivity is proved adversarially: a separate VST3 control render moves
+the large Pitch automation by exactly one sample while leaving all other inputs
+unchanged. The correct VST3 render must match the independently constructed
+direct-core sequence inside the frozen tolerance, while the shifted control must
+violate that same tolerance. This proves the comparator is capable of detecting
+a one-sample automation timing error rather than merely accepting aggregate
+audio similarity.
+
+A second 5000-frame sequence places note-on at frame 4095 and automation plus
+external excitation at frame 4096. The direct engine processes the same absolute
+portable sequence as bounded <=4096-frame chunks with independently rebased
+events; the VST3 Processor performs its production host-block chunking. The two
+stereo renders must remain inside the same frozen per-sample tolerance and the
+frame-4095 note must not be delayed into the second chunk.
+
+Acceptance remains pending fresh exact-head native Debug/Release, ASan+UBSan,
+portability, M3 native/WASM parity, the complete VST3 regression suite including
+this parity proof, Steinberg validator 47/47, review of the recorded parity
+metrics, and fresh hostile review.
 
 ### M4.10 — VST3 conformance
 

@@ -11,6 +11,7 @@ on:
       - "tests/unit/test_vst3_state.cpp"
       - "tests/unit/test_vst3_external_excitation.cpp"
       - "tests/unit/test_vst3_realtime.cpp"
+      - "tests/unit/test_vst3_parity.cpp"
       - "cmake/vst3_sdk.cmake"
       - "cmake/check_vst3_realtime_boundary.cmake"
       - "cmake/check_vst3_boundary.cmake"
@@ -52,13 +53,14 @@ jobs:
       - name: Build VST3 host
         run: cmake --build build-vst3-linux --target ResonantEngineBreathPipe --parallel 2
 
-      - name: Run VST3 control, state, excitation and realtime regressions
+      - name: Run VST3 control, state, excitation, realtime and parity regressions
         run: |
           cmake --build build-vst3-linux --target resonant_vst3_processor_flush_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_state_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_external_excitation_tests --parallel 2
           cmake --build build-vst3-linux --target resonant_vst3_realtime_tests --parallel 2
-          ctest --test-dir build-vst3-linux -R "resonant_vst3_(processor_flush|state|external_excitation|realtime)_tests|resonant_vst3_realtime_boundary" --output-on-failure
+          cmake --build build-vst3-linux --target resonant_vst3_parity_tests --parallel 2
+          ctest --test-dir build-vst3-linux -R "resonant_vst3_(processor_flush|state|external_excitation|realtime|parity)_tests|resonant_vst3_realtime_boundary" --output-on-failure
 
       - name: Record M4.8 native wrapper CPU scaling
         shell: bash
@@ -74,6 +76,23 @@ jobs:
             echo
             echo "```text"
             cat m4-realtime.log
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record M4.9 native-core/VST3 parity evidence
+        shell: bash
+        run: |
+          build-vst3-linux/resonant_vst3_parity_tests | tee m4-parity.log
+          grep -F "PASS: M4.9 native-core/VST3 parity" m4-parity.log
+          grep -F "M4.9 PARITY reference" m4-parity.log
+          grep -F "M4.9 TIMING shifted_automation_by=1" m4-parity.log
+          grep -F "detected=1" m4-parity.log
+          grep -F "M4.9 PARITY chunk_boundary" m4-parity.log
+          {
+            echo "## M4.9 native-core/VST3 parity"
+            echo
+            echo "```text"
+            cat m4-parity.log
             echo "```"
           } >> "$GITHUB_STEP_SUMMARY"
 
