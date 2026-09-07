@@ -676,13 +676,28 @@ void* allocateAligned(std::size_t size, std::size_t alignment) {
     if (g_track_allocations.load(std::memory_order_acquire)) {
         g_allocation_count.fetch_add(1U, std::memory_order_relaxed);
     }
+#ifdef _MSC_VER
+    if (void* pointer =
+            _aligned_malloc(std::max(size, std::size_t{1U}), alignment)) {
+        return pointer;
+    }
+#else
     const auto adjusted =
         ((std::max(size, std::size_t{1U}) + alignment - 1U) / alignment) *
         alignment;
     if (void* pointer = std::aligned_alloc(alignment, adjusted)) {
         return pointer;
     }
+#endif
     throw std::bad_alloc{};
+}
+
+void freeAligned(void* pointer) noexcept {
+#ifdef _MSC_VER
+    _aligned_free(pointer);
+#else
+    std::free(pointer);
+#endif
 }
 
 } // namespace
@@ -738,7 +753,7 @@ void operator delete(void* pointer, const std::nothrow_t&) noexcept {
 void operator delete[](void* pointer, const std::nothrow_t&) noexcept {
     std::free(pointer);
 }
-void operator delete(void* pointer, std::align_val_t) noexcept { std::free(pointer); }
+void operator delete(void* pointer, std::align_val_t) noexcept { freeAligned(pointer); }
 void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept {
     std::free(pointer);
 }
