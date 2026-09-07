@@ -293,6 +293,33 @@ void testAutomationExtremesAndMalformedRecovery() {
     check(malformed_fail_closed,
           "malformed automation fails closed and clears output");
 
+    Steinberg::Vst::ParameterChanges malformed_value{1};
+    Steinberg::int32 malformed_value_queue_index = 0;
+    auto* malformed_value_queue = malformed_value.addParameterData(
+        static_cast<Steinberg::Vst::ParamID>(
+            resonant::BreathPipeVoice::kPressure),
+        malformed_value_queue_index);
+    Steinberg::int32 malformed_value_point_index = 0;
+    check(malformed_value_queue != nullptr &&
+              malformed_value_queue->addPoint(
+                  0, 1.25, malformed_value_point_index) ==
+                  Steinberg::kResultOk,
+          "construct out-of-range normalized automation value");
+
+    std::array<float, static_cast<std::size_t>(kFrames)> bad_value_left{};
+    std::array<float, static_cast<std::size_t>(kFrames)> bad_value_right{};
+    bad_value_left.fill(0.5F);
+    bad_value_right.fill(0.5F);
+    const auto bad_value = processBlock(
+        processor, Steinberg::Vst::kRealtime,
+        bad_value_left, bad_value_right, nullptr, &malformed_value);
+    const bool malformed_value_fail_closed =
+        bad_value.result == Steinberg::kResultFalse &&
+        allZero(bad_value_left) && allZero(bad_value_right) &&
+        bad_value.silence_flags != 0;
+    check(malformed_value_fail_closed,
+          "out-of-range automation value fails closed and clears output");
+
     Steinberg::Vst::ParameterChanges extremes{1};
     Steinberg::int32 extreme_queue_index = 0;
     auto* extreme_queue = extremes.addParameterData(
@@ -349,6 +376,8 @@ void testAutomationExtremesAndMalformedRecovery() {
               << " extreme_finite=" << (extreme_finite ? 1 : 0)
               << " recovered_silence=" << (recovery_silence ? 1 : 0)
               << '\n';
+    std::cout << "M4.10 AUTOMATION_VALUE malformed_value_fail_closed="
+              << (malformed_value_fail_closed ? 1 : 0) << '\n';
 
     check(processor.setActive(false) == Steinberg::kResultOk,
           "deactivate processor after hostile automation recovery");
