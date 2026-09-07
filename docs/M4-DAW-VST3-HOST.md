@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.5 MERGED AND COMPLETE — M4.6 IMPLEMENTATION ACCEPTED; PROTECTED MERGE NOT YET AUTHORIZED**
+Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION ACCEPTED; PROTECTED MERGE PENDING**
 
 ## Goal
 
@@ -200,16 +200,87 @@ try-once writer arbitration and never spins or takes a mutex; no VST3-specific
 DSP, Breath Pipe retuning or host-specific serialized canonical state was
 introduced.
 
-The following reconciliation changes documentation only. It does not alter core,
-VST3 implementation, CMake, SDK pin, tests or workflow behaviour. The PR remains
-subject to its final exact-head self-hosted gate and protected merge
-authorization.
+Final M4.6 acceptance completed at exact head
+`3fd9265ab3671187b2efaf51396ae4d1f8f1518f`: CI #219, PR Exact Head #79 and
+M4 VST3 Linux Exact Head #42 all passed, including native Debug/Release,
+ASan+UBSan, no-exceptions/no-RTTI portability, M3 native/WASM parity, the
+zero-sample/state regressions and Steinberg validator **47/47**. PR #14 then
+merged at the explicitly authorized head as merge commit
+`fedb61fba0d27406671c1a2154a4904430398ef0`. The authorized and merged trees
+are identical at `e4f47fbd6a0e686e3a47fe05385dbb03ffea78a9`. Post-merge CI #220
+passed sanitizers, portability, native Debug/Release and browser/M3
+native-WASM parity. M4.6 is merged and complete.
 
 ### M4.7 — External excitation
 
-- [ ] when an input bus is available, route caller-owned input audio through the existing core external-excitation path;
-- [ ] no device/file/network access in the core;
-- [ ] no hidden monitoring or extra synthesis path.
+- [x] when an input bus is available, route caller-owned input audio through the existing core external-excitation path;
+- [x] no device/file/network access in the core;
+- [x] no hidden monitoring or extra synthesis path.
+
+The M4.7 implementation candidate adds one optional stereo VST3 auxiliary input
+bus named `External Excitation`. It follows the VST3 side-chain convention:
+the bus is `kAux` and is not requested active by default, so ordinary
+instrument use remains event/output-only unless a host connects the bus. The
+declared arrangement is stereo, while negotiated mono or stereo processing is
+accepted so normal VST3 bus-arrangement negotiation remains conformant.
+
+The processor prepares the existing SDK-free `BreathPipeCoreAdapter` for up to
+two portable input channels. During a real audio block it accepts either no
+input bus, a zero-channel bus, a fully inactive negotiated bus whose channel
+sample pointers are all null, or one/two caller-owned float32 input channels.
+Partially-null, over-wide or extra input busses fail closed. No input
+sample is copied into the output by the host wrapper: active input pointers are
+passed directly into the already accepted `Engine<BreathPipeVoice>` external
+excitation path, and output still comes only from that core model.
+
+For host blocks larger than the core maximum, input and output pointers are both
+rebased for each consecutive bounded core chunk. This preserves the M4.2 rule
+that host block size cannot become feedback delay and prevents the second chunk
+from accidentally rereading the start of the host input buffer.
+
+Dedicated VST3 regression coverage proves:
+- the external bus is auxiliary, stereo and not default-active;
+- disconnected/no-input operation remains exactly silent from reset;
+- supplied external audio creates resonant output through the core and is not a dry copy;
+- an inactive all-null auxiliary bus behaves as no external input;
+- negotiated mono and stereo input both reach the same portable core path;
+- partially-null or over-wide input fails closed and clears output;
+- excitation that begins only after frame 4096 is observed only by the correctly rebased second core chunk.
+
+No `core/**` DSP file changes in M4.7, and there is no device, file or network
+access. Because this slice changes VST3 processor I/O topology, earlier hosted
+Windows/macOS evidence must not be carried through M4 final freeze; M4.12 will
+require a fresh hosted platform matrix.
+
+The initial M4.7 implementation head
+`ca1501119e3cd87d894f005a156b2150a5034e9c` passed the dedicated
+external-excitation/control/state regressions, but Steinberg validator exposed a
+real host-contract defect: the wrapper rejected a legitimate host-negotiated
+mono input arrangement and failed three conformance tests. The repair accepts
+negotiated mono or stereo input through the existing portable 0–2 channel core
+contract while retaining fail-closed handling for partially-null, over-wide and
+extra input. Validation was not weakened.
+
+Implementation acceptance completed at exact head
+`b6792bbebf8dec879f1eda7594da2ecbaf47e4e1`. PR Exact Head #83 passed
+native Debug, native Release, ASan+UBSan, no-exceptions/no-RTTI portability and
+M3 native/WASM parity. M4 VST3 Linux Exact Head #46 passed the zero-sample,
+portable-state and external-excitation regressions (**3/3**) and Steinberg
+validator reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of that implementation head also passed: mono/stereo
+negotiation stays within the existing portable channel contract; fully inactive
+input becomes no excitation; partially-null/over-wide/extra input fails closed;
+input pointers rebase with each bounded core chunk; no input is copied directly
+to output by the Host wrapper; no `core/**` DSP, Breath Pipe tuning, device,
+file or network path was added.
+
+This reconciliation changes documentation only. It deliberately does not alter
+VST3 implementation, core DSP, CMake, SDK pin, tests or workflow behaviour. Its
+resulting final documentation head must pass fresh exact-head self-hosted
+validation and a final no-drift review before PR #15 may leave Draft. Final
+Ready evidence is recorded in PR metadata/comment rather than by another
+head-changing documentation commit.
 
 ### M4.8 — Realtime and boundedness proof
 

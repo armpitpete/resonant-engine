@@ -185,6 +185,36 @@ if(RESONANT_ENGINE_BUILD_TESTS)
         )
 
         add_executable(
+            resonant_vst3_external_excitation_tests
+            tests/unit/test_vst3_external_excitation.cpp
+            hosts/vst3/Processor.cpp
+        )
+        target_include_directories(
+            resonant_vst3_external_excitation_tests
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        target_include_directories(
+            resonant_vst3_external_excitation_tests
+            SYSTEM BEFORE PRIVATE
+                ${vst3sdk_SOURCE_DIR}
+        )
+        target_link_libraries(
+            resonant_vst3_external_excitation_tests
+            PRIVATE
+                ResonantEngine::core
+                sdk
+                sdk_hosting
+        )
+        target_compile_features(
+            resonant_vst3_external_excitation_tests PRIVATE cxx_std_20)
+        resonant_apply_warnings(resonant_vst3_external_excitation_tests)
+        add_test(
+            NAME resonant_vst3_external_excitation_tests
+            COMMAND resonant_vst3_external_excitation_tests
+        )
+
+        add_executable(
             resonant_vst3_state_tests
             tests/unit/test_vst3_state.cpp
             hosts/vst3/Processor.cpp
