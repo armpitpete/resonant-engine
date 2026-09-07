@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.8 MERGED AND COMPLETE — M4.9 NATIVE-CORE/VST3 PARITY ACCEPTED; FINAL-HEAD VALIDATION PENDING**
+Status: **M4.0–M4.9 MERGED AND COMPLETE — M4.10 VST3 CONFORMANCE ACCEPTED; FINAL-HEAD VALIDATION PENDING**
 
 ## Goal
 
@@ -457,14 +457,94 @@ parity/validator gate and a final hostile/no-drift review before PR #17 may
 leave Draft. Final Ready evidence is recorded in PR metadata/comment rather than
 by another head-changing documentation commit.
 
+PR #17 subsequently merged at exact authorized head
+`71a4820c3f0e99860e4e065f49b932f1d49d849c` as merge commit
+`f6b9f3bd201411c7c7e4be074afdbf4ca08e5fcd`. The merge commit is one
+commit ahead of the authorized head with no file differences and tree
+`3c45253a259d6f94c44b8e2a2ea912e6628f9a14`.
+
+Post-merge CI #223 passed native Debug/Release, ASan+UBSan,
+no-exceptions/no-RTTI portability and browser/native-WASM parity on the exact
+merged `main` commit. M4.9 is therefore merged, post-merge reconciled and
+complete.
+
 ### M4.10 — VST3 conformance
 
-- [ ] Steinberg validator PASS;
-- [ ] clean plugin scan/load/unload;
-- [ ] repeated activate/deactivate/reset;
-- [ ] state save/restore;
-- [ ] offline/non-realtime processing mode where supplied by host;
-- [ ] no crash or stuck voice after malformed or extreme automation.
+- [x] Steinberg validator PASS;
+- [x] clean plugin scan/load/unload;
+- [x] repeated activate/deactivate/reset;
+- [x] state save/restore;
+- [x] offline/non-realtime processing mode where supplied by host;
+- [x] no crash or stuck voice after malformed or extreme automation.
+
+M4.10 is a conformance-proof slice. It does not change `core/**` DSP, Breath
+Pipe tuning or the VST3 processing algorithm unless the proof exposes a real
+host-contract defect.
+
+The Steinberg validator remains authoritative for module loading/class scanning,
+Terminate/Initialize, Suspend/Resume, bus/parameter scanning, state transitions,
+automation and the broader VST3 conformance suite. The workflow now records
+those lifecycle/scan markers in addition to requiring the aggregate validator
+PASS.
+
+The dedicated `resonant_vst3_conformance_tests` target adds the uncovered
+host-behaviour proof:
+
+- configure and process the real `Processor` in VST3 `kOffline` mode,
+  requiring finite non-silent Breath Pipe output;
+- repeat eight activate/deactivate cycles, requiring exact reset silence before
+  each fresh note and finite audible output after the new note;
+- inject an out-of-block automation point, requiring fail-closed rejection,
+  cleared output and host silence flags;
+- exercise legal normalized endpoint automation at 0 and 1, requiring finite
+  processing;
+- prove a valid note-off and ordinary lifecycle reset remain usable after the
+  hostile block, ending in exact silence rather than a poisoned or stuck voice.
+
+Portable project state remains covered by the existing M4.6
+`resonant_vst3_state_tests`, which stays in the same VST3 exact-head gate and
+proves save/restore, transactional malformed-state rejection and deterministic
+recall.
+
+M4.10 acceptance implementation head:
+`584fb198ba7a52778c8df44d82e1f41070525f8d`.
+
+Exact-head evidence on that implementation head:
+
+- PR Exact Head #93: native Debug PASS, native Release PASS, ASan+UBSan PASS,
+  no-exceptions/no-RTTI portability PASS, and M3 native/WASM parity PASS;
+- M4 VST3 Linux Exact Head #56: complete VST3 regression suite PASS, including
+  `resonant_vst3_conformance_tests`;
+- offline proof:
+  `M4.10 OFFLINE process_mode=offline finite=1 audible=1`;
+- repeated lifecycle proof:
+  `M4.10 LIFECYCLE cycles=8 reset_silence=1 fresh_note_audio=1`;
+- hostile timeline automation proof:
+  `M4.10 AUTOMATION malformed_fail_closed=1 extreme_finite=1 recovered_silence=1`;
+- hostile normalized-value proof:
+  `M4.10 AUTOMATION_VALUE malformed_value_fail_closed=1`;
+- Steinberg validator: `47 tests passed, 0 tests failed`;
+- four additional complete validator load/scan/exit cycles:
+  `M4.10 MODULE_LOAD_UNLOAD validator_cycles=4 pass=1`.
+
+A hostile proof review strengthened the candidate before acceptance. It found
+that the first proof design did not explicitly demonstrate unload/reload
+behaviour and did not cover an out-of-range normalized automation value. Both
+gaps were repaired in the proof harness without changing production DSP or the
+VST3 processing algorithm. An intermediate exact-head VST3 run then failed only
+because the evidence script contained a literal `\\n` between two `grep`
+commands; the underlying conformance CTest had already passed. That harness typo
+was corrected before the accepted implementation head above.
+
+No `core/**` DSP file, Breath Pipe tuning, Processor processing algorithm or
+frozen M4.9 comparison tolerance changed in M4.10.
+
+This reconciliation changes documentation only. The resulting final
+documentation head must pass fresh exact-head PR validation and the complete
+VST3 conformance/validator gate, followed by a final hostile/no-drift review and
+base-freshness check, before PR #18 may leave Draft. Final Ready evidence should
+be recorded in PR metadata/comment rather than another head-changing docs
+commit.
 
 ### M4.11 — Human DAW acceptance
 
