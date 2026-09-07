@@ -48,7 +48,8 @@ bool prepare(resonant::vst3::Processor& processor,
     setup.symbolicSampleSize = Steinberg::Vst::kSample32;
     setup.maxSamplesPerBlock = max_frames;
     setup.sampleRate = kSampleRate;
-    return processor.setupProcessing(setup) == Steinberg::kResultOk;
+    return processor.setupProcessing(setup) == Steinberg::kResultOk &&
+           processor.setActive(true) == Steinberg::kResultOk;
 }
 
 Steinberg::Vst::Event noteOnEvent() {
@@ -706,6 +707,24 @@ void* operator new(std::size_t size, std::align_val_t alignment) {
 void* operator new[](std::size_t size, std::align_val_t alignment) {
     return allocateAligned(size, static_cast<std::size_t>(alignment));
 }
+void* operator new(std::size_t size,
+                   std::align_val_t alignment,
+                   const std::nothrow_t&) noexcept {
+    try {
+        return allocateAligned(size, static_cast<std::size_t>(alignment));
+    } catch (...) {
+        return nullptr;
+    }
+}
+void* operator new[](std::size_t size,
+                     std::align_val_t alignment,
+                     const std::nothrow_t&) noexcept {
+    try {
+        return allocateAligned(size, static_cast<std::size_t>(alignment));
+    } catch (...) {
+        return nullptr;
+    }
+}
 
 void operator delete(void* pointer) noexcept { std::free(pointer); }
 void operator delete(void* pointer, std::size_t) noexcept { std::free(pointer); }
@@ -723,6 +742,16 @@ void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept {
 }
 void operator delete[](void* pointer, std::align_val_t) noexcept { std::free(pointer); }
 void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept {
+    std::free(pointer);
+}
+void operator delete(void* pointer,
+                     std::align_val_t,
+                     const std::nothrow_t&) noexcept {
+    std::free(pointer);
+}
+void operator delete[](void* pointer,
+                       std::align_val_t,
+                       const std::nothrow_t&) noexcept {
     std::free(pointer);
 }
 
