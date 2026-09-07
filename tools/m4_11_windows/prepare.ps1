@@ -120,7 +120,7 @@ if ($bundleMatches.Count -eq 1) {
     }
 }
 
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 $manifestPath = Join-Path $evidencePath "plugin-files.sha256"
 $bundleRoot = $bundle.FullName.TrimEnd("\", "/")
 
