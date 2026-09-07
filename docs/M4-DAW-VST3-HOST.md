@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION CANDIDATE, FINAL ACCEPTANCE PENDING**
+Status: **M4.0–M4.6 MERGED AND COMPLETE — M4.7 IMPLEMENTATION ACCEPTED; PROTECTED MERGE PENDING**
 
 ## Goal
 
@@ -252,9 +252,35 @@ access. Because this slice changes VST3 processor I/O topology, earlier hosted
 Windows/macOS evidence must not be carried through M4 final freeze; M4.12 will
 require a fresh hosted platform matrix.
 
-M4.7 acceptance remains pending fresh exact-head Oracle validation, the Linux
-VST3 external-excitation regression, Steinberg validator **47/47**, and a fresh
-hostile review.
+The initial M4.7 implementation head
+`ca1501119e3cd87d894f005a156b2150a5034e9c` passed the dedicated
+external-excitation/control/state regressions, but Steinberg validator exposed a
+real host-contract defect: the wrapper rejected a legitimate host-negotiated
+mono input arrangement and failed three conformance tests. The repair accepts
+negotiated mono or stereo input through the existing portable 0–2 channel core
+contract while retaining fail-closed handling for partially-null, over-wide and
+extra input. Validation was not weakened.
+
+Implementation acceptance completed at exact head
+`b6792bbebf8dec879f1eda7594da2ecbaf47e4e1`. PR Exact Head #83 passed
+native Debug, native Release, ASan+UBSan, no-exceptions/no-RTTI portability and
+M3 native/WASM parity. M4 VST3 Linux Exact Head #46 passed the zero-sample,
+portable-state and external-excitation regressions (**3/3**) and Steinberg
+validator reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of that implementation head also passed: mono/stereo
+negotiation stays within the existing portable channel contract; fully inactive
+input becomes no excitation; partially-null/over-wide/extra input fails closed;
+input pointers rebase with each bounded core chunk; no input is copied directly
+to output by the Host wrapper; no `core/**` DSP, Breath Pipe tuning, device,
+file or network path was added.
+
+This reconciliation changes documentation only. It deliberately does not alter
+VST3 implementation, core DSP, CMake, SDK pin, tests or workflow behaviour. Its
+resulting final documentation head must pass fresh exact-head self-hosted
+validation and a final no-drift review before PR #15 may leave Draft. Final
+Ready evidence is recorded in PR metadata/comment rather than by another
+head-changing documentation commit.
 
 ### M4.8 — Realtime and boundedness proof
 
