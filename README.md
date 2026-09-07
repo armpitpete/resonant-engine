@@ -117,7 +117,7 @@ Canonical M3 contract: `docs/M3-BREATH-PIPE.md`.
 
 ## M4 — DAW/VST3 Reference Host
 
-**Status: M4.0–M4.8 MERGED AND COMPLETE — M4.9 NATIVE-CORE/VST3 PARITY ACCEPTED; FINAL-HEAD VALIDATION PENDING.**
+**Status: M4.0–M4.9 MERGED AND COMPLETE — M4.10 VST3 CONFORMANCE CANDIDATE; ACCEPTANCE PENDING.**
 
 M4 is the first real DAW-host proof for the frozen Resonant Engine. M4.0–M4.3 now provide a thin VST3 instrument component/controller around the same `resonant_core` and M3 Breath Pipe Reference Voice, using a pinned Steinberg VST3 SDK directly while keeping VST3/JUCE/DAW types outside the core. Oversized DAW blocks are split into bounded core calls without extra buffering or changing feedback timing.
 
