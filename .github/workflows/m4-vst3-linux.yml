@@ -65,6 +65,7 @@ jobs:
         run: |
           build-vst3-linux/resonant_vst3_realtime_tests | tee m4-realtime.log
           grep -F "PASS: M4.8 VST3 realtime and boundedness proof" m4-realtime.log
+          grep -F "M4.8 CPU_DEADLINE sample_rate=48000" m4-realtime.log
           grep -F "M4.8 CPU_SCALE instances=1" m4-realtime.log
           grep -F "M4.8 CPU_SCALE instances=4" m4-realtime.log
           grep -F "M4.8 CPU_SCALE instances=8" m4-realtime.log

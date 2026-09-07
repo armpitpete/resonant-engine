@@ -11,10 +11,13 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <new>
+#include <span>
 #include <string_view>
 
 namespace {
@@ -23,6 +26,14 @@ std::atomic<bool> g_track_allocations{false};
 std::atomic<std::size_t> g_allocation_count{0U};
 int failures = 0;
 
+constexpr Steinberg::int32 kFrames = 128;
+constexpr double kSampleRate = 48'000.0;
+constexpr double kDeadlineNs =
+    1'000'000'000.0 * static_cast<double>(kFrames) / kSampleRate;
+constexpr double kOneInstanceBudgetPercent = 25.0;
+constexpr double kFourInstanceBudgetPercent = 70.0;
+constexpr double kEightInstanceBudgetPercent = 100.0;
+
 void check(bool condition, std::string_view name) {
     if (!condition) {
         ++failures;
@@ -30,14 +41,13 @@ void check(bool condition, std::string_view name) {
     }
 }
 
-constexpr Steinberg::int32 kFrames = 128;
-
-bool prepare(resonant::vst3::Processor& processor) {
+bool prepare(resonant::vst3::Processor& processor,
+             Steinberg::int32 max_frames = kFrames) {
     Steinberg::Vst::ProcessSetup setup{};
     setup.processMode = Steinberg::Vst::kRealtime;
     setup.symbolicSampleSize = Steinberg::Vst::kSample32;
-    setup.maxSamplesPerBlock = kFrames;
-    setup.sampleRate = 48'000.0;
+    setup.maxSamplesPerBlock = max_frames;
+    setup.sampleRate = kSampleRate;
     return processor.setupProcessing(setup) == Steinberg::kResultOk;
 }
 
@@ -162,6 +172,100 @@ private:
     Steinberg::int32 count_{0};
 };
 
+class ChunkedStream final : public Steinberg::IBStream {
+public:
+    void load(std::span<const std::byte> bytes) noexcept {
+        size_ = std::min(bytes.size(), storage_.size());
+        std::copy_n(bytes.begin(), size_, storage_.begin());
+        position_ = 0U;
+    }
+
+    Steinberg::tresult PLUGIN_API queryInterface(
+        const Steinberg::TUID,
+        void** object) override {
+        if (object != nullptr) {
+            *object = nullptr;
+        }
+        return Steinberg::kNoInterface;
+    }
+
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1U; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1U; }
+
+    Steinberg::tresult PLUGIN_API read(
+        void* buffer,
+        Steinberg::int32 num_bytes,
+        Steinberg::int32* num_bytes_read) override {
+        if (num_bytes_read != nullptr) {
+            *num_bytes_read = 0;
+        }
+        if (buffer == nullptr || num_bytes < 0 || position_ >= size_) {
+            return Steinberg::kResultFalse;
+        }
+        const auto available = size_ - position_;
+        const auto requested = static_cast<std::size_t>(num_bytes);
+        const auto count = std::min(available, requested);
+        if (count == 0U) {
+            return Steinberg::kResultFalse;
+        }
+        std::memcpy(buffer, storage_.data() + position_, count);
+        position_ += count;
+        if (num_bytes_read != nullptr) {
+            *num_bytes_read = static_cast<Steinberg::int32>(count);
+        }
+        return Steinberg::kResultOk;
+    }
+
+    Steinberg::tresult PLUGIN_API write(
+        void*,
+        Steinberg::int32,
+        Steinberg::int32*) override {
+        return Steinberg::kNotImplemented;
+    }
+
+    Steinberg::tresult PLUGIN_API seek(
+        Steinberg::int64 pos,
+        Steinberg::int32 mode,
+        Steinberg::int64* result) override {
+        Steinberg::int64 base = 0;
+        switch (mode) {
+        case Steinberg::IBStream::kIBSeekSet:
+            base = 0;
+            break;
+        case Steinberg::IBStream::kIBSeekCur:
+            base = static_cast<Steinberg::int64>(position_);
+            break;
+        case Steinberg::IBStream::kIBSeekEnd:
+            base = static_cast<Steinberg::int64>(size_);
+            break;
+        default:
+            return Steinberg::kResultFalse;
+        }
+        const auto next = base + pos;
+        if (next < 0 || next > static_cast<Steinberg::int64>(size_)) {
+            return Steinberg::kResultFalse;
+        }
+        position_ = static_cast<std::size_t>(next);
+        if (result != nullptr) {
+            *result = next;
+        }
+        return Steinberg::kResultOk;
+    }
+
+    Steinberg::tresult PLUGIN_API tell(Steinberg::int64* pos) override {
+        if (pos == nullptr) {
+            return Steinberg::kResultFalse;
+        }
+        *pos = static_cast<Steinberg::int64>(position_);
+        return Steinberg::kResultOk;
+    }
+
+private:
+    std::array<std::byte, 256U> storage_{};
+    std::size_t size_{0U};
+    std::size_t position_{0U};
+};
+
 struct BlockFixture {
     std::array<float, static_cast<std::size_t>(kFrames)> input_left{};
     std::array<float, static_cast<std::size_t>(kFrames)> input_right{};
@@ -207,38 +311,159 @@ bool allZero(const BlockFixture& block) {
            std::all_of(block.output_right.begin(), block.output_right.end(), zero);
 }
 
-void testWrapperProcessAllocatesNothing() {
-    resonant::vst3::Processor processor;
-    check(prepare(processor), "prepare processor for wrapper allocation proof");
-
-    BlockFixture block{true};
-    block.input_left.fill(0.05F);
-    block.input_right.fill(-0.03F);
-
-    const auto note = noteOnEvent();
-    SingleEventList events{note};
-
-    Steinberg::Vst::ParameterChanges changes{1};
-    Steinberg::int32 queue_index = 0;
-    auto* queue = changes.addParameterData(
-        resonant::BreathPipeVoice::kTurbulence, queue_index);
-    Steinberg::int32 point_index = 0;
-    check(queue != nullptr &&
-              queue->addPoint(64, 0.35, point_index) == Steinberg::kResultOk,
-          "prepare fixed automation before allocation tracking");
-
-    block.data.inputEvents = &events;
-    block.data.inputParameterChanges = &changes;
-
+template <class Fn>
+Steinberg::tresult trackedProcess(Fn&& fn, std::string_view allocation_name) {
     g_allocation_count.store(0U, std::memory_order_relaxed);
     g_track_allocations.store(true, std::memory_order_release);
-    const auto status = processor.process(block.data);
+    const auto status = fn();
     g_track_allocations.store(false, std::memory_order_release);
-
-    check(status == Steinberg::kResultOk,
-          "tracked VST3 process call succeeds");
     check(g_allocation_count.load(std::memory_order_acquire) == 0U,
-          "VST3 process path performs zero dynamic allocations");
+          allocation_name);
+    return status;
+}
+
+Steinberg::Vst::ParameterChanges makeParameterChange(
+    Steinberg::Vst::ParamID id,
+    Steinberg::int32 sample_offset,
+    Steinberg::Vst::ParamValue normalized) {
+    Steinberg::Vst::ParameterChanges changes{1};
+    Steinberg::int32 queue_index = 0;
+    auto* queue = changes.addParameterData(id, queue_index);
+    Steinberg::int32 point_index = 0;
+    check(queue != nullptr &&
+              queue->addPoint(sample_offset, normalized, point_index) ==
+                  Steinberg::kResultOk,
+          "prepare parameter change before allocation tracking");
+    return changes;
+}
+
+void testAllocationFreeProcessPaths() {
+    {
+        resonant::vst3::Processor processor;
+        check(prepare(processor), "prepare ordinary allocation proof");
+        BlockFixture block{true};
+        block.input_left.fill(0.05F);
+        block.input_right.fill(-0.03F);
+        const auto note = noteOnEvent();
+        SingleEventList events{note};
+        auto changes = makeParameterChange(
+            resonant::BreathPipeVoice::kTurbulence, 64, 0.35);
+        block.data.inputEvents = &events;
+        block.data.inputParameterChanges = &changes;
+        check(trackedProcess(
+                  [&] { return processor.process(block.data); },
+                  "ordinary VST3 process path performs zero dynamic allocations") ==
+                  Steinberg::kResultOk,
+              "ordinary tracked VST3 process call succeeds");
+    }
+
+    {
+        resonant::vst3::Processor processor;
+        check(prepare(processor), "prepare zero-sample flush allocation proof");
+        auto changes = makeParameterChange(
+            resonant::BreathPipeVoice::kPressure, 0, 0.4);
+        Steinberg::Vst::ProcessData flush{};
+        flush.processMode = Steinberg::Vst::kRealtime;
+        flush.symbolicSampleSize = Steinberg::Vst::kSample32;
+        flush.numSamples = 0;
+        flush.inputParameterChanges = &changes;
+        check(trackedProcess(
+                  [&] { return processor.process(flush); },
+                  "zero-sample parameter flush performs zero dynamic allocations") ==
+                  Steinberg::kResultOk,
+              "tracked zero-sample flush succeeds");
+    }
+
+    {
+        resonant::vst3::Processor processor;
+        check(prepare(processor), "prepare state-handoff allocation proof");
+        auto state = resonant::defaultBreathPipeState();
+        state.seed = 0x123456789abcdef0ULL;
+        state.parameters[1].value = 0.61F;
+        std::array<std::byte, resonant::BreathPipeStateCodec::kEncodedSize> bytes{};
+        check(resonant::BreathPipeStateCodec::encode(state, bytes),
+              "encode queued portable state before allocation tracking");
+        ChunkedStream stream{};
+        stream.load(bytes);
+        check(processor.setState(&stream) == Steinberg::kResultOk,
+              "queue portable state before allocation tracking");
+        BlockFixture block{};
+        check(trackedProcess(
+                  [&] { return processor.process(block.data); },
+                  "queued state audio-boundary apply performs zero dynamic allocations") ==
+                  Steinberg::kResultOk,
+              "tracked queued-state process succeeds");
+    }
+
+    {
+        resonant::vst3::Processor processor;
+        check(prepare(processor), "prepare event-overflow allocation proof");
+        BlockFixture block{};
+        block.clearOutput(0.5F);
+        CountOnlyEventList events{
+            static_cast<Steinberg::int32>(resonant::kMaxEventsPerBlock + 1U)};
+        block.data.inputEvents = &events;
+        check(trackedProcess(
+                  [&] { return processor.process(block.data); },
+                  "fail-closed event overflow performs zero dynamic allocations") ==
+                  Steinberg::kResultFalse,
+              "tracked event overflow fails closed");
+        check(allZero(block), "tracked event overflow clears output");
+    }
+
+    {
+        resonant::vst3::Processor processor;
+        check(prepare(processor), "prepare automation-overflow allocation proof");
+        BlockFixture block{};
+        block.clearOutput(0.5F);
+        CountOnlyParameterChanges changes{
+            static_cast<Steinberg::int32>(resonant::kMaxEventsPerBlock + 1U)};
+        block.data.inputParameterChanges = &changes;
+        check(trackedProcess(
+                  [&] { return processor.process(block.data); },
+                  "fail-closed automation overflow performs zero dynamic allocations") ==
+                  Steinberg::kResultFalse,
+              "tracked automation overflow fails closed");
+        check(allZero(block), "tracked automation overflow clears output");
+    }
+
+    {
+        constexpr Steinberg::int32 kOversizedFrames = 5'000;
+        resonant::vst3::Processor processor;
+        check(prepare(processor, kOversizedFrames),
+              "prepare oversized-block allocation proof");
+
+        std::array<float, static_cast<std::size_t>(kOversizedFrames)> input_left{};
+        std::array<float, static_cast<std::size_t>(kOversizedFrames)> input_right{};
+        std::array<float, static_cast<std::size_t>(kOversizedFrames)> output_left{};
+        std::array<float, static_cast<std::size_t>(kOversizedFrames)> output_right{};
+        input_left.fill(0.02F);
+        input_right.fill(-0.01F);
+
+        std::array<float*, 2U> inputs{{input_left.data(), input_right.data()}};
+        std::array<float*, 2U> outputs{{output_left.data(), output_right.data()}};
+        Steinberg::Vst::AudioBusBuffers input_bus{};
+        input_bus.numChannels = 2;
+        input_bus.channelBuffers32 = inputs.data();
+        Steinberg::Vst::AudioBusBuffers output_bus{};
+        output_bus.numChannels = 2;
+        output_bus.channelBuffers32 = outputs.data();
+
+        Steinberg::Vst::ProcessData data{};
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = kOversizedFrames;
+        data.numInputs = 1;
+        data.numOutputs = 1;
+        data.inputs = &input_bus;
+        data.outputs = &output_bus;
+
+        check(trackedProcess(
+                  [&] { return processor.process(data); },
+                  "oversized host-block chunking performs zero dynamic allocations") ==
+                  Steinberg::kResultOk,
+              "tracked oversized host block succeeds");
+    }
 }
 
 void testBoundedHostTranslationFailsClosed() {
@@ -337,9 +562,9 @@ void testFiniteInputProtectionIsObservable() {
 
 template <std::size_t Instances>
 double benchmarkInstances() {
-    constexpr std::size_t kWarmupBlocks = 48U;
-    constexpr std::size_t kMeasuredBlocks = 320U;
-    constexpr std::size_t kRepeats = 5U;
+    constexpr std::size_t kWarmupBlocks = 64U;
+    constexpr std::size_t kMeasuredBlocks = 512U;
+    constexpr std::size_t kRepeats = 7U;
 
     std::array<resonant::vst3::Processor, Instances> processors{};
     std::array<BlockFixture, Instances> blocks{};
@@ -391,6 +616,10 @@ double benchmarkInstances() {
     return measurements[kRepeats / 2U];
 }
 
+double realtimeLoadPercent(double elapsed_ns) {
+    return 100.0 * elapsed_ns / kDeadlineNs;
+}
+
 void recordCpuScaling() {
     const auto one = benchmarkInstances<1U>();
     const auto four = benchmarkInstances<4U>();
@@ -400,14 +629,33 @@ void recordCpuScaling() {
               std::isfinite(one) && std::isfinite(four) && std::isfinite(eight),
           "native wrapper CPU scaling measurements are finite");
 
-    if (one > 0.0) {
-        std::cout << "M4.8 CPU_SCALE instances=1 ns_per_128f_host_block="
-                  << one << " relative=1\n";
-        std::cout << "M4.8 CPU_SCALE instances=4 ns_per_128f_host_block="
-                  << four << " relative=" << (four / one) << '\n';
-        std::cout << "M4.8 CPU_SCALE instances=8 ns_per_128f_host_block="
-                  << eight << " relative=" << (eight / one) << '\n';
+    if (one <= 0.0 || four <= 0.0 || eight <= 0.0) {
+        return;
     }
+
+    const auto one_load = realtimeLoadPercent(one);
+    const auto four_load = realtimeLoadPercent(four);
+    const auto eight_load = realtimeLoadPercent(eight);
+
+    check(one_load < kOneInstanceBudgetPercent,
+          "one VST3 instance stays under frozen 25% realtime budget");
+    check(four_load < kFourInstanceBudgetPercent,
+          "four VST3 instances stay under frozen 70% realtime budget");
+    check(eight_load < kEightInstanceBudgetPercent,
+          "eight-instance stress stays inside the realtime deadline");
+
+    std::cout << "M4.8 CPU_DEADLINE sample_rate=" << kSampleRate
+              << " frames=" << kFrames
+              << " deadline_ns=" << kDeadlineNs << '\n';
+    std::cout << "M4.8 CPU_SCALE instances=1 ns_per_128f_host_block="
+              << one << " realtime_load_percent=" << one_load
+              << " budget_percent=" << kOneInstanceBudgetPercent << '\n';
+    std::cout << "M4.8 CPU_SCALE instances=4 ns_per_128f_host_block="
+              << four << " realtime_load_percent=" << four_load
+              << " budget_percent=" << kFourInstanceBudgetPercent << '\n';
+    std::cout << "M4.8 CPU_SCALE instances=8 ns_per_128f_host_block="
+              << eight << " realtime_load_percent=" << eight_load
+              << " budget_percent=" << kEightInstanceBudgetPercent << '\n';
 }
 
 void* allocate(std::size_t size) {
@@ -437,6 +685,20 @@ void* allocateAligned(std::size_t size, std::size_t alignment) {
 
 void* operator new(std::size_t size) { return allocate(size); }
 void* operator new[](std::size_t size) { return allocate(size); }
+void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
+    try {
+        return allocate(size);
+    } catch (...) {
+        return nullptr;
+    }
+}
+void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
+    try {
+        return allocate(size);
+    } catch (...) {
+        return nullptr;
+    }
+}
 void* operator new(std::size_t size, std::align_val_t alignment) {
     return allocateAligned(size, static_cast<std::size_t>(alignment));
 }
@@ -448,6 +710,12 @@ void operator delete(void* pointer) noexcept { std::free(pointer); }
 void operator delete(void* pointer, std::size_t) noexcept { std::free(pointer); }
 void operator delete[](void* pointer) noexcept { std::free(pointer); }
 void operator delete[](void* pointer, std::size_t) noexcept { std::free(pointer); }
+void operator delete(void* pointer, const std::nothrow_t&) noexcept {
+    std::free(pointer);
+}
+void operator delete[](void* pointer, const std::nothrow_t&) noexcept {
+    std::free(pointer);
+}
 void operator delete(void* pointer, std::align_val_t) noexcept { std::free(pointer); }
 void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept {
     std::free(pointer);
@@ -458,7 +726,7 @@ void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept {
 }
 
 int main() {
-    testWrapperProcessAllocatesNothing();
+    testAllocationFreeProcessPaths();
     testBoundedHostTranslationFailsClosed();
     testLifecycleResetIsDeterministic();
     testFiniteInputProtectionIsObservable();

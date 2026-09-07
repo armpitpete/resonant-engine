@@ -2,6 +2,9 @@ if(NOT DEFINED VST3_DIR)
     message(FATAL_ERROR "VST3_DIR is required")
 endif()
 
+# Supplementary source guard only. Runtime allocation tests remain the primary
+# proof for Processor::process(); this catches obvious future regressions that
+# would introduce blocking primitives or heap-backed containers in the wrapper.
 set(M4_REALTIME_FILES
     "${VST3_DIR}/Processor.cpp"
     "${VST3_DIR}/CoreAdapter.hpp"
@@ -16,8 +19,16 @@ set(M4_FORBIDDEN_REALTIME_TOKENS
     "std::unique_lock"
     "std::scoped_lock"
     "std::condition_variable"
+    "std::atomic_wait"
+    ".wait("
+    "std::counting_semaphore"
+    "std::binary_semaphore"
+    "std::latch"
+    "std::barrier"
     "std::this_thread::sleep"
     "std::this_thread::yield"
+    "std::thread"
+    "std::jthread"
     "std::future"
     "std::async"
     "std::vector"
@@ -27,6 +38,9 @@ set(M4_FORBIDDEN_REALTIME_TOKENS
     "std::unordered_map"
     "std::unordered_set"
     "std::function"
+    "std::basic_string"
+    "std::make_unique"
+    "std::make_shared"
     "malloc("
     "calloc("
     "realloc("
@@ -48,4 +62,4 @@ foreach(path IN LISTS M4_REALTIME_FILES)
 endforeach()
 
 message(STATUS
-    "PASS: M4.8 VST3 realtime sources contain no blocking/heap-container APIs")
+    "PASS: supplementary M4.8 wrapper source guard found no obvious blocking/heap-container APIs")
