@@ -755,21 +755,21 @@ void operator delete[](void* pointer, const std::nothrow_t&) noexcept {
 }
 void operator delete(void* pointer, std::align_val_t) noexcept { freeAligned(pointer); }
 void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept {
-    std::free(pointer);
+    freeAligned(pointer);
 }
-void operator delete[](void* pointer, std::align_val_t) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, std::align_val_t) noexcept { freeAligned(pointer); }
 void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept {
-    std::free(pointer);
+    freeAligned(pointer);
 }
 void operator delete(void* pointer,
                      std::align_val_t,
                      const std::nothrow_t&) noexcept {
-    std::free(pointer);
+    freeAligned(pointer);
 }
 void operator delete[](void* pointer,
                        std::align_val_t,
                        const std::nothrow_t&) noexcept {
-    std::free(pointer);
+    freeAligned(pointer);
 }
 
 int main() {
