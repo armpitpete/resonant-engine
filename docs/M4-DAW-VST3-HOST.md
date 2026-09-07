@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.8 MERGED AND COMPLETE — M4.9 NATIVE-CORE/VST3 PARITY CANDIDATE; ACCEPTANCE PENDING**
+Status: **M4.0–M4.8 MERGED AND COMPLETE — M4.9 NATIVE-CORE/VST3 PARITY ACCEPTED; FINAL-HEAD VALIDATION PENDING**
 
 ## Goal
 
@@ -386,9 +386,9 @@ post-merge reconciled and complete.
 
 ### M4.9 — Native-core/VST3 parity
 
-- [ ] deterministic reference sequences rendered directly through the core and through the VST3 processor;
-- [ ] compare output signatures within an explicitly documented tolerance;
-- [ ] prove automation/event timing parity, not only static-note audio similarity.
+- [x] deterministic reference sequences rendered directly through the core and through the VST3 processor;
+- [x] compare output signatures within an explicitly documented tolerance;
+- [x] prove automation/event timing parity, not only static-note audio similarity.
 
 M4.9 is a proof-only host-boundary slice. It does not change `core/**` DSP or
 the VST3 processing algorithm. The direct side instantiates
@@ -425,10 +425,37 @@ events; the VST3 Processor performs its production host-block chunking. The two
 stereo renders must remain inside the same frozen per-sample tolerance and the
 frame-4095 note must not be delayed into the second chunk.
 
-Acceptance remains pending fresh exact-head native Debug/Release, ASan+UBSan,
-portability, M3 native/WASM parity, the complete VST3 regression suite including
-this parity proof, Steinberg validator 47/47, review of the recorded parity
-metrics, and fresh hostile review.
+Implementation acceptance completed at exact head
+`d5956415db3a4b7d6dcf3b13c0522bbc3bdabd21`.
+
+- PR Exact Head #89 passed native Debug, native Release, ASan+UBSan,
+  no-exceptions/no-RTTI portability and M3 native/WASM parity.
+- M4 VST3 Linux Exact Head #52 passed the control, state, external-excitation,
+  realtime, realtime-boundary and native-core/VST3 parity suite: **6 tests
+  passed, 0 failed**.
+- Reference native-core/VST3 stereo parity was bit-identical:
+  **max_abs_diff=0**, **rms_diff=0**.
+- The deliberately one-sample-shifted Pitch automation control was rejected by
+  the same frozen comparator: **max_abs_diff=0.000387879**,
+  **rms_diff=0.000179364**, **detected=1**.
+- The 5000-frame chunk-boundary render was also bit-identical:
+  **max_abs_diff=0**, **rms_diff=0**, with the frame-4095 note-on not delayed.
+- Steinberg validator reported **47 tests passed, 0 tests failed**.
+
+Fresh hostile review of the accepted implementation head passed. The direct
+oracle independently constructs portable note and parameter events; it does not
+consume `HostEventTranslator` or `HostParameterMapping` output. Canonical core
+parameter metadata is used only to denormalize native values. The host side uses
+the real `Processor`, independent VST3 event/parameter objects, real external
+input buffers and production oversized-block chunking. The frozen tolerance was
+not relaxed after measurement. No `core/**` DSP file or VST3 processing
+algorithm changed in M4.9.
+
+This reconciliation changes documentation only. The resulting final
+documentation head must pass fresh exact-head self-hosted validation, the VST3
+parity/validator gate and a final hostile/no-drift review before PR #17 may
+leave Draft. Final Ready evidence is recorded in PR metadata/comment rather than
+by another head-changing documentation commit.
 
 ### M4.10 — VST3 conformance
 
