@@ -322,11 +322,11 @@ Steinberg::tresult trackedProcess(Fn&& fn, std::string_view allocation_name) {
     return status;
 }
 
-Steinberg::Vst::ParameterChanges makeParameterChange(
+void addParameterChange(
+    Steinberg::Vst::ParameterChanges& changes,
     Steinberg::Vst::ParamID id,
     Steinberg::int32 sample_offset,
     Steinberg::Vst::ParamValue normalized) {
-    Steinberg::Vst::ParameterChanges changes{1};
     Steinberg::int32 queue_index = 0;
     auto* queue = changes.addParameterData(id, queue_index);
     Steinberg::int32 point_index = 0;
@@ -334,7 +334,6 @@ Steinberg::Vst::ParameterChanges makeParameterChange(
               queue->addPoint(sample_offset, normalized, point_index) ==
                   Steinberg::kResultOk,
           "prepare parameter change before allocation tracking");
-    return changes;
 }
 
 void testAllocationFreeProcessPaths() {
@@ -346,8 +345,9 @@ void testAllocationFreeProcessPaths() {
         block.input_right.fill(-0.03F);
         const auto note = noteOnEvent();
         SingleEventList events{note};
-        auto changes = makeParameterChange(
-            resonant::BreathPipeVoice::kTurbulence, 64, 0.35);
+        Steinberg::Vst::ParameterChanges changes{1};
+        addParameterChange(
+            changes, resonant::BreathPipeVoice::kTurbulence, 64, 0.35);
         block.data.inputEvents = &events;
         block.data.inputParameterChanges = &changes;
         check(trackedProcess(
@@ -360,8 +360,9 @@ void testAllocationFreeProcessPaths() {
     {
         resonant::vst3::Processor processor;
         check(prepare(processor), "prepare zero-sample flush allocation proof");
-        auto changes = makeParameterChange(
-            resonant::BreathPipeVoice::kPressure, 0, 0.4);
+        Steinberg::Vst::ParameterChanges changes{1};
+        addParameterChange(
+            changes, resonant::BreathPipeVoice::kPressure, 0, 0.4);
         Steinberg::Vst::ProcessData flush{};
         flush.processMode = Steinberg::Vst::kRealtime;
         flush.symbolicSampleSize = Steinberg::Vst::kSample32;
