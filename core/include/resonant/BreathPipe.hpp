@@ -432,6 +432,39 @@ public:
         const auto external_amount = clampFinite(external_amount_.next(), 0.0F, 1.0F, 0.50F);
         const auto timbre = clampFinite(timbre_.next(), 0.0F, 1.0F, 0.25F);
 
+        // M3.7 musical controls are macros, not promises that every exposed knob
+        // maps one-to-one onto a single coefficient. The accepted Stable Pipe
+        // operating point is the zero-motion anchor: at its canonical Pressure,
+        // Turbulence, Damping and Nonlinear Drive values these cross-couplings
+        // are exactly zero, preserving that reference sound. Away from that point
+        // the macros deliberately move related energetic/spectral quantities so
+        // control extremes remain perceptually meaningful rather than merely
+        // mathematically different.
+        const auto pressure_motion = macroDistance(pressure, 0.55F);
+        const auto turbulence_motion = macroDistance(turbulence, 0.18F);
+        const auto damping_motion = macroDistance(damping, 0.08F);
+        const auto drive_motion = macroDistance(nonlinear_drive, 0.10F);
+
+        const auto expressive_interaction = clampFinite(
+            interaction + 0.18F * pressure_motion + 0.18F * drive_motion,
+            0.0F, 1.0F, interaction);
+        const auto expressive_damping = clampFinite(
+            damping - 0.05F * pressure_motion,
+            0.0F, 1.0F, damping);
+        const auto expressive_regeneration = clampFinite(
+            regeneration - 0.30F * damping_motion + 0.20F * drive_motion,
+            0.0F, 1.5F, regeneration);
+        const auto expressive_feedback_color = clampFinite(
+            feedback_color + 0.30F * turbulence_motion -
+                0.20F * damping_motion + 0.30F * drive_motion,
+            0.0F, 1.0F, feedback_color);
+        const auto expressive_nonlinear_drive = clampFinite(
+            nonlinear_drive + 0.20F * pressure_motion,
+            0.0F, 1.0F, nonlinear_drive);
+        const auto expressive_timbre = clampFinite(
+            timbre + 0.25F * turbulence_motion + 0.20F * drive_motion,
+            0.0F, 1.0F, timbre);
+
         const auto trigger = pending_trigger_;
         pending_trigger_ = 0.0F;
         const auto excitation = exciter_.processSample({
@@ -439,19 +472,20 @@ public:
             external_amount,
             pressure,
             turbulence,
-            interaction,
+            expressive_interaction,
             last_returned_,
-            nonlinear_drive,
+            expressive_nonlinear_drive,
             trigger,
         });
         const auto resonated = resonator_.processSample(
             excitation,
-            {pitch, damping, pressure, interaction, regeneration,
-             feedback_color, nonlinear_drive, timbre});
+            {pitch, expressive_damping, pressure, expressive_interaction,
+             expressive_regeneration, expressive_feedback_color,
+             expressive_nonlinear_drive, expressive_timbre});
         last_returned_ = resonated.feedback_tap;
         const auto sample = EnergyMonitor::contain(resonated.sample, 1.5F);
         energy_.observe(excitation, resonated.sample, sample,
-                        last_returned_ * regeneration);
+                        last_returned_ * expressive_regeneration);
 
         const auto& diagnostics = energy_.diagnostics();
         if (resonator_.numericalFailure() || diagnostics.nan_detected ||
@@ -517,6 +551,16 @@ public:
     }
 
 private:
+    [[nodiscard]] static Sample macroDistance(Sample value,
+                                              Sample anchor) noexcept {
+        value = clampFinite(value, 0.0F, 1.0F, anchor);
+        anchor = clampFinite(anchor, 0.001F, 0.999F, 0.5F);
+        if (value >= anchor) {
+            return (value - anchor) / (1.0F - anchor);
+        }
+        return -(anchor - value) / anchor;
+    }
+
     void applyPersistentParameter(ParameterId target,
                                   Sample value,
                                   bool hard_reset) noexcept {
