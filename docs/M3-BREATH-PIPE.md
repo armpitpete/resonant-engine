@@ -235,6 +235,23 @@ A macro control may drive several internal parameters nonlinearly. For example, 
 
 MIDI semantics remain Host-side. Hosts may map velocity, mod wheel, channel/per-note pressure, MPE or hardware controls onto model concepts, but the Breath Pipe model itself receives model controls rather than MIDI concepts.
 
+### M3.7 primary perceptual-macro contract
+
+M4.11 direct DAW listening exposed a weakness that the original M3 automated gates did not measure: controls could be mathematically different while remaining too weak as musical controls. M3.7 is therefore reopened narrowly for Pressure, Turbulence, Damping and Nonlinear Drive. The topology and canonical Stable Pipe identity remain protected.
+
+The canonical Stable Pipe point is the zero-motion anchor for the reopened macro mapping: Pressure `0.55`, Turbulence `0.18`, Interaction `0.72`, Damping `0.08`, Regeneration `0.38`, Feedback colour `0.25`, Nonlinear Drive `0.10`, External excitation `0.0`, Timbre `0.25`. The macro layer must reproduce the underlying exciter/resonator path sample-for-sample at that point.
+
+The four primary controls have distinct behavioural contracts:
+
+- **Pressure**: obvious energy and regime movement. Between `0.25` and `0.85`, sustained RMS must rise by at least `12 dB` and overblow amount must increase by at least `0.40`.
+- **Turbulence**: obvious air/noise-texture movement. Between `0.05` and `0.85`, sustained RMS must rise by at least `9 dB` and the first-difference roughness proxy must rise by at least `10%`.
+- **Damping**: obvious resonant-loss movement. Between `0.03` and `0.65`, sustained RMS must fall by at least `9 dB` and mode-0 radius must fall by at least `0.001`.
+- **Nonlinear Drive**: obvious clean-to-driven/aggressive movement. Between `0.05` and `0.90`, sustained RMS must rise by at least `3 dB`, roughness must rise by at least `15%`, and overblow amount must increase by at least `0.10`.
+
+For each primary macro, five representative control positions must also have no dead zone: every adjacent render pair must produce normalized waveform separation of at least `0.10`. These thresholds are deterministic engineering prefilters, not psychoacoustic proof. Direct H04 listening remains authoritative for whether the resulting movement is clearly audible, coherent and musically useful in a real DAW.
+
+Interaction, Regeneration, Feedback colour and Timbre retain their existing model semantics and regression coverage, but M3.7 does not claim that every exposed control must have equal perceptual leverage.
+
 ## Generic-primitive promotion rule
 
 A Breath-Pipe-specific implementation stays inside the model unless its abstraction is independently useful outside Breath Pipe.

@@ -432,37 +432,40 @@ public:
         const auto external_amount = clampFinite(external_amount_.next(), 0.0F, 1.0F, 0.50F);
         const auto timbre = clampFinite(timbre_.next(), 0.0F, 1.0F, 0.25F);
 
-        // M3.7 musical controls are macros, not promises that every exposed knob
-        // maps one-to-one onto a single coefficient. The accepted Stable Pipe
-        // operating point is the zero-motion anchor: at its canonical Pressure,
-        // Turbulence, Damping and Nonlinear Drive values these cross-couplings
-        // are exactly zero, preserving that reference sound. Away from that point
-        // the macros deliberately move related energetic/spectral quantities so
-        // control extremes remain perceptually meaningful rather than merely
-        // mathematically different.
+        // M3.7 expressive controls are perceptual macros. The canonical Stable
+        // Pipe point remains the exact zero-motion anchor, preserving the frozen
+        // reference identity there. Direct H04 listening showed that the first
+        // widening was still too subtle, so movement away from Stable Pipe now
+        // expands the primary control itself and several physically related
+        // energetic/spectral quantities.
         const auto pressure_motion = macroDistance(pressure, 0.55F);
         const auto turbulence_motion = macroDistance(turbulence, 0.18F);
         const auto damping_motion = macroDistance(damping, 0.08F);
         const auto drive_motion = macroDistance(nonlinear_drive, 0.10F);
 
+        const auto expressive_pressure = clampFinite(
+            pressure + 0.25F * pressure_motion, 0.0F, 1.0F, pressure);
+        const auto expressive_turbulence = clampFinite(
+            turbulence + 0.25F * turbulence_motion, 0.0F, 1.0F, turbulence);
         const auto expressive_interaction = clampFinite(
-            interaction + 0.18F * pressure_motion + 0.18F * drive_motion,
+            interaction + 0.45F * pressure_motion + 0.35F * drive_motion,
             0.0F, 1.0F, interaction);
         const auto expressive_damping = clampFinite(
-            damping - 0.05F * pressure_motion,
+            damping - 0.20F * pressure_motion + 0.40F * damping_motion,
             0.0F, 1.0F, damping);
         const auto expressive_regeneration = clampFinite(
-            regeneration - 0.30F * damping_motion + 0.20F * drive_motion,
+            regeneration + 0.45F * pressure_motion - 0.65F * damping_motion +
+                0.50F * drive_motion,
             0.0F, 1.5F, regeneration);
         const auto expressive_feedback_color = clampFinite(
-            feedback_color + 0.30F * turbulence_motion -
-                0.20F * damping_motion + 0.30F * drive_motion,
+            feedback_color + 0.75F * turbulence_motion -
+                0.50F * damping_motion + 0.60F * drive_motion,
             0.0F, 1.0F, feedback_color);
         const auto expressive_nonlinear_drive = clampFinite(
-            nonlinear_drive + 0.20F * pressure_motion,
+            nonlinear_drive + 0.50F * pressure_motion + 0.30F * drive_motion,
             0.0F, 1.0F, nonlinear_drive);
         const auto expressive_timbre = clampFinite(
-            timbre + 0.25F * turbulence_motion + 0.20F * drive_motion,
+            timbre + 0.75F * turbulence_motion + 0.50F * drive_motion,
             0.0F, 1.0F, timbre);
 
         const auto trigger = pending_trigger_;
@@ -470,8 +473,8 @@ public:
         const auto excitation = exciter_.processSample({
             external,
             external_amount,
-            pressure,
-            turbulence,
+            expressive_pressure,
+            expressive_turbulence,
             expressive_interaction,
             last_returned_,
             expressive_nonlinear_drive,
@@ -479,7 +482,7 @@ public:
         });
         const auto resonated = resonator_.processSample(
             excitation,
-            {pitch, expressive_damping, pressure, expressive_interaction,
+            {pitch, expressive_damping, expressive_pressure, expressive_interaction,
              expressive_regeneration, expressive_feedback_color,
              expressive_nonlinear_drive, expressive_timbre});
         last_returned_ = resonated.feedback_tap;
@@ -554,7 +557,13 @@ private:
     [[nodiscard]] static Sample macroDistance(Sample value,
                                               Sample anchor) noexcept {
         value = clampFinite(value, 0.0F, 1.0F, anchor);
-        anchor = clampFinite(anchor, 0.001F, 0.999F, 0.5F);
+        anchor = clampFinite(anchor, 0.0F, 1.0F, 0.5F);
+        if (anchor <= 0.000001F) {
+            return value;
+        }
+        if (anchor >= 0.999999F) {
+            return value - 1.0F;
+        }
         if (value >= anchor) {
             return (value - anchor) / (1.0F - anchor);
         }

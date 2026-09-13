@@ -22,6 +22,11 @@ struct RenderStats {
     bool ok{false};
     double rms{0.0};
     double peak{0.0};
+    double roughness{0.0};
+    double lag1_correlation{0.0};
+    double crest_db{0.0};
+    double overblow{0.0};
+    double mode_radius_0{0.0};
     std::vector<float> samples{};
 };
 
@@ -94,6 +99,30 @@ baseEvents(resonant::ParameterId varied, float value) {
     }
     if (!stats.samples.empty()) {
         stats.rms = std::sqrt(sum_squares / static_cast<double>(stats.samples.size()));
+        if (stats.samples.size() > 1U) {
+            double delta_squares = 0.0;
+            double lag_product = 0.0;
+            double lag_energy_a = 0.0;
+            double lag_energy_b = 0.0;
+            for (std::size_t i = 1U; i < stats.samples.size(); ++i) {
+                const auto a = static_cast<double>(stats.samples[i - 1U]);
+                const auto b = static_cast<double>(stats.samples[i]);
+                const auto delta = b - a;
+                delta_squares += delta * delta;
+                lag_product += a * b;
+                lag_energy_a += a * a;
+                lag_energy_b += b * b;
+            }
+            const auto delta_rms = std::sqrt(
+                delta_squares / static_cast<double>(stats.samples.size() - 1U));
+            stats.roughness = delta_rms / std::max(stats.rms, 1.0e-12);
+            stats.lag1_correlation = lag_product /
+                std::sqrt(std::max(lag_energy_a * lag_energy_b, 1.0e-24));
+        }
+        stats.crest_db = 20.0 * std::log10(
+            std::max(stats.peak, 1.0e-12) / std::max(stats.rms, 1.0e-12));
+        stats.overblow = engine.model().resonator().overblowAmount();
+        stats.mode_radius_0 = engine.model().resonator().modeRadius(0);
         stats.ok = true;
     }
     return stats;
@@ -120,6 +149,148 @@ baseEvents(resonant::ParameterId varied, float value) {
     return result;
 }
 
+void checkStablePipeMacroIdentity() {
+    constexpr resonant::Seed seed = 0x5a17U;
+    const resonant::ProcessSpec spec{kSampleRate, kBlockSize, 1, 1};
+    Voice voice{seed};
+    resonant::BreathPipeExciter exciter;
+    resonant::BreathPipeModalResonator resonator;
+    const std::array<float, 10> stable_values{{
+        220.0F, 0.55F, 0.18F, 0.72F, 0.08F,
+        0.38F, 0.25F, 0.10F, 0.0F, 0.25F,
+    }};
+    const auto prepared = voice.prepare(spec) && exciter.prepare(spec, seed) &&
+                          resonator.prepare(spec) &&
+                          voice.restorePersistentState(seed, stable_values);
+    if (!prepared) {
+        ++failures;
+        std::cerr << "FAIL: Stable Pipe identity fixture prepares\n";
+        return;
+    }
+
+    voice.handleEvent({0, resonant::EventType::NoteOn, 0, 1, 0.55F, 0.0F});
+    float returned = 0.0F;
+    double maximum_error = 0.0;
+    for (std::uint32_t frame = 0; frame < 24'000U; ++frame) {
+        float voice_sample = 0.0F;
+        if (!voice.processSample({}, std::span<float>{&voice_sample, 1U})) {
+            ++failures;
+            std::cerr << "FAIL: Stable Pipe voice render remains healthy\n";
+            return;
+        }
+        const auto excitation = exciter.processSample({
+            0.0F, 0.0F, 0.55F, 0.18F, 0.72F, returned, 0.10F,
+            frame == 0U ? 0.55F : 0.0F,
+        });
+        const auto direct = resonator.processSample(
+            excitation, {220.0F, 0.08F, 0.55F, 0.72F, 0.38F,
+                         0.25F, 0.10F, 0.25F});
+        returned = direct.feedback_tap;
+        maximum_error = std::max(maximum_error,
+                                 std::abs(static_cast<double>(voice_sample) -
+                                          static_cast<double>(direct.sample)));
+    }
+    if (maximum_error > 1.0e-7) {
+        ++failures;
+        std::cerr << "FAIL: M3.7 macros alter canonical Stable Pipe identity\n";
+    }
+    std::cout << "StablePipe macro_identity_max_error=" << maximum_error << '\n';
+}
+
+double checkProgression(std::string_view name, resonant::ParameterId id,
+                        const std::array<float, 5>& values,
+                        double minimum_step_difference) {
+    std::array<RenderStats, 5> renders{};
+    for (std::size_t i = 0U; i < values.size(); ++i) {
+        renders[i] = render(id, values[i]);
+    }
+    auto minimum_observed = 1.0e9;
+    std::cout << name << " progression";
+    for (std::size_t i = 1U; i < renders.size(); ++i) {
+        const auto comparison = compare(renders[i - 1U], renders[i]);
+        minimum_observed = std::min(minimum_observed, comparison.normalized_difference);
+        std::cout << " step" << i << "=" << comparison.normalized_difference;
+        if (!renders[i - 1U].ok || !renders[i].ok ||
+            comparison.normalized_difference < minimum_step_difference) {
+            ++failures;
+            std::cerr << "FAIL: " << name << " has a macro dead zone at step "
+                      << i << '\n';
+        }
+    }
+    std::cout << " minimum=" << minimum_observed
+              << " required=" << minimum_step_difference << '\n';
+    return minimum_observed;
+}
+
+void checkPrimaryMacroContracts() {
+    constexpr double kMinimumTravelStep = 0.10;
+    (void)checkProgression("Pressure", Voice::kPressure,
+                           {0.15F, 0.35F, 0.55F, 0.75F, 0.95F},
+                           kMinimumTravelStep);
+    (void)checkProgression("Turbulence", Voice::kTurbulence,
+                           {0.00F, 0.18F, 0.40F, 0.70F, 1.00F},
+                           kMinimumTravelStep);
+    (void)checkProgression("Damping", Voice::kDamping,
+                           {0.00F, 0.08F, 0.30F, 0.60F, 1.00F},
+                           kMinimumTravelStep);
+    (void)checkProgression("NonlinearDrive", Voice::kNonlinearDrive,
+                           {0.00F, 0.10F, 0.35F, 0.65F, 1.00F},
+                           kMinimumTravelStep);
+
+    const auto pressure_low = render(Voice::kPressure, 0.25F);
+    const auto pressure_high = render(Voice::kPressure, 0.85F);
+    const auto pressure = compare(pressure_low, pressure_high);
+    if (!pressure_low.ok || !pressure_high.ok || pressure.rms_ratio_db < 12.0 ||
+        pressure_high.overblow - pressure_low.overblow < 0.40) {
+        ++failures;
+        std::cerr << "FAIL: Pressure macro contract (energy + regime movement)\n";
+    }
+
+    const auto turbulence_low = render(Voice::kTurbulence, 0.05F);
+    const auto turbulence_high = render(Voice::kTurbulence, 0.85F);
+    const auto turbulence = compare(turbulence_low, turbulence_high);
+    if (!turbulence_low.ok || !turbulence_high.ok || turbulence.rms_ratio_db < 9.0 ||
+        turbulence_high.roughness < turbulence_low.roughness * 1.10) {
+        ++failures;
+        std::cerr << "FAIL: Turbulence macro contract (air/noise texture)\n";
+    }
+
+    const auto damping_low = render(Voice::kDamping, 0.03F);
+    const auto damping_high = render(Voice::kDamping, 0.65F);
+    const auto damping = compare(damping_low, damping_high);
+    if (!damping_low.ok || !damping_high.ok || damping.rms_ratio_db > -9.0 ||
+        damping_low.mode_radius_0 - damping_high.mode_radius_0 < 0.001) {
+        ++failures;
+        std::cerr << "FAIL: Damping macro contract (resonant loss)\n";
+    }
+
+    const auto drive_low = render(Voice::kNonlinearDrive, 0.05F);
+    const auto drive_high = render(Voice::kNonlinearDrive, 0.90F);
+    const auto drive = compare(drive_low, drive_high);
+    if (!drive_low.ok || !drive_high.ok || drive.rms_ratio_db < 3.0 ||
+        drive_high.roughness < drive_low.roughness * 1.15 ||
+        drive_high.overblow - drive_low.overblow < 0.10) {
+        ++failures;
+        std::cerr << "FAIL: Nonlinear Drive macro contract (aggression/richness)\n";
+    }
+
+    std::cout << "Primary macro contracts: "
+              << "pressure_db=" << pressure.rms_ratio_db
+              << " pressure_overblow_delta="
+              << (pressure_high.overblow - pressure_low.overblow)
+              << " turbulence_db=" << turbulence.rms_ratio_db
+              << " turbulence_roughness_ratio="
+              << turbulence_high.roughness / std::max(turbulence_low.roughness, 1.0e-12)
+              << " damping_db=" << damping.rms_ratio_db
+              << " damping_radius_delta="
+              << (damping_low.mode_radius_0 - damping_high.mode_radius_0)
+              << " drive_db=" << drive.rms_ratio_db
+              << " drive_roughness_ratio="
+              << drive_high.roughness / std::max(drive_low.roughness, 1.0e-12)
+              << " drive_overblow_delta="
+              << (drive_high.overblow - drive_low.overblow) << '\n';
+}
+
 void checkLeverage(std::string_view name, resonant::ParameterId id, float low,
                    float high, double minimum_difference) {
     const auto low_render = render(id, low);
@@ -140,12 +311,24 @@ void checkLeverage(std::string_view name, resonant::ParameterId id, float low,
               << " normalized_diff=" << comparison.normalized_difference
               << " minimum_diff=" << minimum_difference
               << " rms_delta_db=" << comparison.rms_ratio_db
+              << " low_roughness=" << low_render.roughness
+              << " high_roughness=" << high_render.roughness
+              << " low_lag1=" << low_render.lag1_correlation
+              << " high_lag1=" << high_render.lag1_correlation
+              << " low_crest_db=" << low_render.crest_db
+              << " high_crest_db=" << high_render.crest_db
+              << " low_overblow=" << low_render.overblow
+              << " high_overblow=" << high_render.overblow
+              << " low_radius0=" << low_render.mode_radius_0
+              << " high_radius0=" << high_render.mode_radius_0
               << '\n';
 }
 
 } // namespace
 
 int main() {
+    checkStablePipeMacroIdentity();
+    checkPrimaryMacroContracts();
     // These floors are deterministic regression guards, not psychoacoustic
     // audibility claims. Human H04 remains authoritative for audibility.
     checkLeverage("Pressure", Voice::kPressure, 0.25F, 0.85F, 0.30);
