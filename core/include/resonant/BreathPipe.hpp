@@ -432,26 +432,63 @@ public:
         const auto external_amount = clampFinite(external_amount_.next(), 0.0F, 1.0F, 0.50F);
         const auto timbre = clampFinite(timbre_.next(), 0.0F, 1.0F, 0.25F);
 
+        // M3.7 expressive controls are perceptual macros. The canonical Stable
+        // Pipe point remains the exact zero-motion anchor, preserving the frozen
+        // reference identity there. Direct H04 listening showed that the first
+        // widening was still too subtle, so movement away from Stable Pipe now
+        // expands the primary control itself and several physically related
+        // energetic/spectral quantities.
+        const auto pressure_motion = macroDistance(pressure, 0.55F);
+        const auto turbulence_motion = macroDistance(turbulence, 0.18F);
+        const auto damping_motion = macroDistance(damping, 0.08F);
+        const auto drive_motion = macroDistance(nonlinear_drive, 0.10F);
+
+        const auto expressive_pressure = clampFinite(
+            pressure + 0.25F * pressure_motion, 0.0F, 1.0F, pressure);
+        const auto expressive_turbulence = clampFinite(
+            turbulence + 0.25F * turbulence_motion, 0.0F, 1.0F, turbulence);
+        const auto expressive_interaction = clampFinite(
+            interaction + 0.45F * pressure_motion + 0.35F * drive_motion,
+            0.0F, 1.0F, interaction);
+        const auto expressive_damping = clampFinite(
+            damping - 0.20F * pressure_motion + 0.40F * damping_motion,
+            0.0F, 1.0F, damping);
+        const auto expressive_regeneration = clampFinite(
+            regeneration + 0.45F * pressure_motion - 0.65F * damping_motion +
+                0.50F * drive_motion,
+            0.0F, 1.5F, regeneration);
+        const auto expressive_feedback_color = clampFinite(
+            feedback_color + 0.75F * turbulence_motion -
+                0.50F * damping_motion + 0.60F * drive_motion,
+            0.0F, 1.0F, feedback_color);
+        const auto expressive_nonlinear_drive = clampFinite(
+            nonlinear_drive + 0.50F * pressure_motion + 0.30F * drive_motion,
+            0.0F, 1.0F, nonlinear_drive);
+        const auto expressive_timbre = clampFinite(
+            timbre + 0.75F * turbulence_motion + 0.50F * drive_motion,
+            0.0F, 1.0F, timbre);
+
         const auto trigger = pending_trigger_;
         pending_trigger_ = 0.0F;
         const auto excitation = exciter_.processSample({
             external,
             external_amount,
-            pressure,
-            turbulence,
-            interaction,
+            expressive_pressure,
+            expressive_turbulence,
+            expressive_interaction,
             last_returned_,
-            nonlinear_drive,
+            expressive_nonlinear_drive,
             trigger,
         });
         const auto resonated = resonator_.processSample(
             excitation,
-            {pitch, damping, pressure, interaction, regeneration,
-             feedback_color, nonlinear_drive, timbre});
+            {pitch, expressive_damping, expressive_pressure, expressive_interaction,
+             expressive_regeneration, expressive_feedback_color,
+             expressive_nonlinear_drive, expressive_timbre});
         last_returned_ = resonated.feedback_tap;
         const auto sample = EnergyMonitor::contain(resonated.sample, 1.5F);
         energy_.observe(excitation, resonated.sample, sample,
-                        last_returned_ * regeneration);
+                        last_returned_ * expressive_regeneration);
 
         const auto& diagnostics = energy_.diagnostics();
         if (resonator_.numericalFailure() || diagnostics.nan_detected ||
@@ -517,6 +554,22 @@ public:
     }
 
 private:
+    [[nodiscard]] static Sample macroDistance(Sample value,
+                                              Sample anchor) noexcept {
+        value = clampFinite(value, 0.0F, 1.0F, anchor);
+        anchor = clampFinite(anchor, 0.0F, 1.0F, 0.5F);
+        if (anchor <= 0.000001F) {
+            return value;
+        }
+        if (anchor >= 0.999999F) {
+            return value - 1.0F;
+        }
+        if (value >= anchor) {
+            return (value - anchor) / (1.0F - anchor);
+        }
+        return -(anchor - value) / anchor;
+    }
+
     void applyPersistentParameter(ParameterId target,
                                   Sample value,
                                   bool hard_reset) noexcept {

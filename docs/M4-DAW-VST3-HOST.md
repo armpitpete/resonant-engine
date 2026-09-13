@@ -1,6 +1,6 @@
 # M4 — DAW/VST3 Reference Host
 
-Status: **M4.0–M4.9 MERGED AND COMPLETE — M4.10 VST3 CONFORMANCE ACCEPTED; FINAL-HEAD VALIDATION PENDING**
+Status: **M4.0–M4.10 MERGED AND COMPLETE — M4.11 HUMAN DAW ACCEPTANCE PREPARED; REAL-DAW SESSION PENDING**
 
 ## Goal
 
@@ -546,6 +546,17 @@ base-freshness check, before PR #18 may leave Draft. Final Ready evidence should
 be recorded in PR metadata/comment rather than another head-changing docs
 commit.
 
+PR #18 subsequently merged at exact authorized head
+`d9a933e6ac85be40f94e20d62df78ebd8a3606fd` as merge commit
+`948695745222db13a785b8c01ae65b9b60351d99`. The merge commit is one
+commit ahead of the authorized head with no file differences.
+
+Post-merge CI #224 passed on exact merged `main`:
+native Debug, native Release, ASan+UBSan, no-exceptions/no-RTTI portability and
+browser/native-WASM parity. Hosted cross-platform/browser smoke lanes were
+correctly skipped. M4.10 is therefore merged, post-merge reconciled and
+**FINAL COMPLETE**.
+
 ### M4.11 — Human DAW acceptance
 
 One real DAW on a supported desktop platform must prove:
@@ -558,6 +569,27 @@ One real DAW on a supported desktop platform must prove:
 - [ ] offline bounce produces valid audio;
 - [ ] stop/start/reload does not leave stuck or runaway state;
 - [ ] listener confirms the host did not materially change the accepted M3 sound.
+
+Canonical execution contract:
+`docs/M4.11-HUMAN-DAW-ACCEPTANCE.md`.
+
+M4.11 preparation is intentionally evidence-only. The Windows helper
+`tools/m4_11_windows/prepare.ps1` requires a clean clone, builds the pinned
+VST3 candidate, runs CTest, creates a deterministic per-file SHA-256 manifest
+for `ResonantEngineBreathPipe.vst3`, and emits session metadata plus an
+acceptance record. It does not install the plugin unless explicitly invoked
+with `-Install`, and installation refuses to overwrite an existing bundle.
+
+The first intended human lane is FL Studio on Windows at 48 kHz, with the exact
+DAW/OS/audio-device details recorded during execution. The current VST3
+reference wrapper is deliberately single-active-note: M4.11's chord/polyphony
+gate proves bounded, predictable monophonic overlap/retrigger/release behaviour
+with no stuck or runaway state. It does not misrepresent the M3 Lab four-voice
+allocator as VST3 polyphony.
+
+Automated preparation cannot close M4.11. The H01–H09 direct real-DAW/listener
+record in the canonical execution contract must pass before this section may be
+checked complete.
 
 The DAW is an acceptance host, not the architectural reference implementation.
 
